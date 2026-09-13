@@ -1,0 +1,132 @@
+rules_version = '2';
+
+// MINED — Firestore Security Rules.
+// Client is untrusted: role, XP, scores, correctness, game state all flow
+// through Cloud Functions (Admin SDK bypasses these rules, but the rules
+// still block any client-side forgery).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+    function userRole(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role;
+    }
+    function isTeacher() {
+      return signedIn() && userRole(request.auth.uid) == 'teacher';
+    }
+    function isStudent() {
+      return signedIn() && userRole(request.auth.uid) == 'student';
+    }
+
+    // ---------- users ----------
+    // Profiles are world-readable (leaderboards show name/XP/level only).
+    // Only the user can edit their own profile, and even then never role/xp/level/stats.
+    match /users/{uid} {
+      allow get: if signedIn();
+      allow list: if signedIn();
+
+      allow create: if isSelf(uid)
+        && request.resource.data.role in ['teacher', 'student']
+        && request.resource.data.xp == 0
+        && request.resource.data.level == 1
+        && request.resource.data.gamesPlayed == 0
+        && request.resource.data.gamesWon == 0;
+
+      allow update: if isSelf(uid)
+        // immutable / server-managed fields:
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.xp == resource.data.xp
+        && request.resource.data.level == resource.data.level
+        && request.resource.data.currentStreak == resource.data.currentStreak
+        && request.resource.data.longestStreak == resource.data.longestStreak
+        && request.resource.data.gamesPlayed == resource.data.gamesPlayed
+        && request.resource.data.gamesWon == resource.data.gamesWon
+        && request.resource.data.totalCorrect == resource.data.totalCorrect
+        && request.resource.data.totalQuestions == resource.data.totalQuestions;
+
+      allow delete: if false;
+    }
+
+    // ---------- quizzes (teacher-owned) ----------
+    match /quizzes/{quizId} {
+      allow read: if signedIn(); // sanitized reads; answer keys never sent during play
+      allow create: if isTeacher() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isTeacher()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId;
+
+      // Questions: only the owning teacher writes. Reads restricted to the
+      // owner or via sessions (students must never read raw question docs).
+      match /questions/{questionId} {
+        allow read: if signedIn() && isTeacher() && resource.data == null || (signedIn() && get(/databases/$(database)/documents/quizzes/$(quizId)).data.ownerId == request.auth.uid);
+        allow create, update, delete: if signedIn()
+          && get(/databases/$(database)/documents/quizzes/$(quizId)).data.ownerId == request.auth.uid;
+      }
+    }
+
+    // ---------- gameSessions ----------
+    match /gameSessions/{sessionId} {
+      allow read: if signedIn(); // no answer keys stored here
+      allow create: if isTeacher() && request.resource.data.teacherId == request.auth.uid;
+      allow update: if signedIn() && (
+        // Teacher host controls
+        (resource.data.teacherId == request.auth.uid)
+        // Students may only record their own activity state flags:
+        || (isStudent() && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['players', 'updatedAt']))
+      );
+      allow delete: if false;
+
+      match /players/{uid} {
+        allow read: if signedIn();
+        // Players are created/updated exclusively by Cloud Functions.
+        allow write: if false;
+      }
+
+      match /answers/{answerId} {
+        allow read: if signedIn() && (
+          resource.data.uid == request.auth.uid
+          || get(/databases/$(database)/documents/gameSessions/$(sessionId)).data.teacherId == request.auth.uid
+        );
+        // Answers are created exclusively by Cloud Functions.
+        allow write: if false;
+      }
+
+      match /removed/{uid} {
+        allow read, write: if false; // admin only
+      }
+    }
+
+    // ---------- gameResults ----------
+    match /gameResults/{resultId} {
+      allow read: if signedIn();
+      allow write: if false; // written by Cloud Functions only
+    }
+
+    // ---------- achievements ----------
+    match /achievements/{achievementId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /userAchievements/{uid} {
+      allow read: if signedIn();
+      allow write: if false; // unlocked server-side only
+      match /items/{achievementId} {
+        allow read: if signedIn();
+        allow write: if false;
+      }
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

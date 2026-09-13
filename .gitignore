@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+functions/node_modules/
+functions/lib/
+.runtimeconfig.json
+firebase-debug.log
+ui-debug.log

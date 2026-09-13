@@ -1,0 +1,50 @@
+rules_version = '2';
+
+// MINED — Storage rules: users write only their own files; teachers write
+// quiz artwork for quizzes they own; everything else is read-only for
+// authenticated users.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    function underLimit() {
+      return request.resource.size < 5 * 1024 * 1024; // 5 MB
+    }
+
+    // Profile pictures: users/{uid}/profile/*
+    match /users/{uid}/profile/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid && isImage() && underLimit();
+    }
+
+    // Quiz images & covers: quizzes/{quizId}/...
+    match /quizzes/{quizId}/{allPath=**} {
+      allow read: if signedIn();
+      allow write: if signedIn() && isImage() && underLimit()
+        && firestore.get(/databases/(default)/documents/quizzes/$(quizId)).data.ownerId == request.auth.uid;
+    }
+
+    // Game artwork: games/{sessionId}/assets/*
+    match /games/{sessionId}/{allPath=**} {
+      allow read: if signedIn();
+      allow write: if false; // managed via console / functions
+    }
+
+    // Public app assets
+    match /assets/{allPath=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+  }
+}
