@@ -1,4 +1,4 @@
-// MINED — Student live game screen. Renders the game-mode experience on top
+// Mined — Student live game screen. Renders the game-mode experience on top
 // of the shared question flow. All scoring comes from the Cloud Function.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -127,7 +127,7 @@ export function StudentGame() {
         <Panel className="question-panel">
           <h2>Question {session.currentQuestionIndex + 1} results</h2>
           <p className="muted">Get ready for the next one…</p>
-          {q.explanation && <p>💡 {q.explanation}</p>}
+          {q.explanation && <p>{q.explanation}</p>}
         </Panel>
       )}
 
@@ -155,13 +155,13 @@ function WaitingRoom({ session, me }: { session: GameSession; me: PlayerState | 
   return (
     <div className="game-bg" style={{ backgroundImage: APP_ASSETS.texture_game_background.value }}>
       <div className="page-center" style={{ minHeight: '80vh' }}>
-        <Logo size="md" tagline />
+        <Logo size="md" />
         <h1 className="mt-2">You’re in! 🎉</h1>
         <p className="muted">Waiting for {me ? 'other players' : 'the teacher to start'}…</p>
         <div className="game-code-display mt-1" style={{ fontSize: '2.2rem' }}>{session.gameCode}</div>
         <p className="muted mt-2">{session.quizTitle}</p>
         <div className="spinner-wrap"><Spinner label="Waiting for the game to start" /></div>
-        <p className="muted" style={{ fontSize: '0.85rem' }}>Get your tapping finger ready ⛏️</p>
+
       </div>
     </div>
   );
@@ -283,7 +283,7 @@ function QuestionView({ session, question, questionIndex, questionCount, uid }: 
       </div>
 
       {selected !== null && !feedback && (
-        <p className="answered-note" aria-live="polite">Answer locked in… ⛏️</p>
+        <p className="answered-note" aria-live="polite">Answer locked in…</p>
       )}
 
       {feedback && (
@@ -296,7 +296,7 @@ function QuestionView({ session, question, questionIndex, questionCount, uid }: 
             </>
           )}
           {!feedback.correct && <div className="feedback-detail">The correct answer was: <strong>{question.options[question.correctOption]}</strong></div>}
-          {question.explanation && <div className="feedback-detail">💡 {question.explanation}</div>}
+          {question.explanation && <div className="feedback-detail">{question.explanation}</div>}
         </div>
       )}
     </>

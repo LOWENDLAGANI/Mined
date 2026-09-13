@@ -1,4 +1,4 @@
-// MINED — Firestore data-access helpers.
+// Mined — Firestore data-access helpers.
 import {
   collection,
   doc,

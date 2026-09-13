@@ -1,4 +1,4 @@
-// MINED — Quiz editor: quiz details + question management.
+// Mined — Quiz editor: quiz details + question management.
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
@@ -88,7 +88,7 @@ export function QuizEditor() {
           <Link to="/teacher/quizzes" className="muted" style={{ fontSize: '0.85rem' }}>← My Quizzes</Link>
           <h1 style={{ margin: '6px 0 0' }}>{title || 'Untitled Quiz'}</h1>
         </div>
-        <Button size="lg" variant="success" onClick={() => setStartOpen(true)}>▶ Start Game</Button>
+        <Button size="lg" variant="success" onClick={() => setStartOpen(true)}>Host game</Button>
       </div>
 
       <Panel>
@@ -125,7 +125,7 @@ export function QuizEditor() {
         <EmptyState icon="❓" title="No questions yet" hint="Add at least one question to run a game." />
       ) : (
         sorted.map((q, i) => (
-          <Card key={q.id} className="question-card" texture={false}>
+          <Card key={q.id} className="question-card">
             <div className="row-between">
               <strong>Q{i + 1}. {q.question || <em className="muted">(empty)</em>}</strong>
               <span className="muted" style={{ fontSize: '0.85rem' }}>{q.timeLimit}s · {q.points} pts</span>
@@ -137,7 +137,7 @@ export function QuizEditor() {
                 </span>
               ))}
             </div>
-            {q.explanation && <p className="muted mt-1" style={{ fontSize: '0.88rem', margin: 0 }}>💡 {q.explanation}</p>}
+            {q.explanation && <p className="muted mt-1" style={{ fontSize: '0.88rem', margin: 0 }}>Explanation: {q.explanation}</p>}
             <div className="row mt-1" style={{ flexWrap: 'wrap' }}>
               <Button size="sm" onClick={() => setEditing({ id: q.id, question: q.question, options: [...q.options], correctOption: q.correctOption, explanation: q.explanation ?? '', timeLimit: q.timeLimit, points: q.points })}>Edit</Button>
               <Button size="sm" variant="secondary" onClick={() => duplicateQuestion(quizId!, q)}>Duplicate</Button>
@@ -177,7 +177,6 @@ export function QuizEditor() {
                 />
               </div>
             ))}
-            <p className="muted" style={{ fontSize: '0.82rem' }}>Select the radio next to the correct option.</p>
             <Input label="Explanation (shown after the question)" name="explanation" value={editing.explanation} onChange={(e) => setEditing({ ...editing, explanation: e.target.value })} />
             <div className="grid grid-2">
               <Input label="Time limit (seconds)" name="timeLimit" type="number" min={5} max={120} value={editing.timeLimit} onChange={(e) => setEditing({ ...editing, timeLimit: Number(e.target.value) })} />
@@ -215,8 +214,8 @@ export function StartGameModal({ open, onClose, quizId, published, questionCount
       <div className="grid grid-auto">
         {GAME_MODE_LIST.map((m) => (
           <Card key={m.id} className={`mode-card ${mode === m.id ? 'card-clickable' : ''}`} onClick={() => setMode(m.id)}
-            texture={false}>
-            <div style={{ outline: mode === m.id ? '3px solid ' + m.color : 'none', borderRadius: 12, padding: 8, cursor: 'pointer' }}>
+           >
+            <div style={{ borderRadius: 12, padding: 8 }}>
               <div className="mode-icon" aria-hidden="true">{m.icon}</div>
               <div className="mode-name">{m.name}</div>
               <div className="mode-tagline">{m.tagline}</div>
@@ -226,7 +225,7 @@ export function StartGameModal({ open, onClose, quizId, published, questionCount
       </div>
       <p className="muted mt-2">{GAME_MODES[mode].description}</p>
       <div className="row mt-1">
-        <Button size="lg" variant="success" onClick={start} disabled={!published || questionCount === 0}>▶ Start {GAME_MODES[mode].name} game</Button>
+        <Button size="lg" variant="success" onClick={start} disabled={!published || questionCount === 0}>Start {GAME_MODES[mode].name} game</Button>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
       </div>
     </Modal>

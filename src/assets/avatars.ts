@@ -1,4 +1,4 @@
-// MINED — Centralized asset configuration.
+// Mined — Centralized asset configuration.
 // All visual assets are referenced through APP_ASSETS / AVATARS / BOSS_ART.
 // Replace placeholders by editing src/assets/textures.ts (or dropping real
 // files into src/assets/textures/) — no component rewrites required.

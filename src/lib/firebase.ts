@@ -1,4 +1,4 @@
-// MINED — Firebase initialization. Credentials come from env vars only.
+// Mined — Firebase initialization. Credentials come from env vars only.
 // If Firebase isn't configured yet (no .env), we initialize with placeholder
 // values so the UI still renders; auth/data calls are gated behind
 // `firebaseConfigured` and show friendly errors instead of crashing the app.

@@ -5,7 +5,7 @@ import './styles.css';
 import { applyTextureVariables } from './assets/applyTextures';
 
 applyTextureVariables();
-import { AuthProvider } from './auth/AuthContext';
+import { AuthProvider, useAuth } from './auth/AuthContext';
 import { RequireAuth, RequireRole } from './auth/RequireAuth';
 import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
@@ -39,13 +39,30 @@ function Fallback() {
   return <div className="page-center"><Spinner /></div>;
 }
 
+/** Sends a signed-in user to their role home (or the register flow when logged out). */
+function HomeRedirect() {
+  const { user, profile, loading } = useAuth();
+  if (loading) return <Fallback />;
+  if (user && profile) {
+    return <Navigate to={profile.role === 'teacher' ? '/teacher/dashboard' : '/student'} replace />;
+  }
+  return <RoleSelect />;
+}
+
+/** Keeps the old /settings URL working, inside the right shell. */
+function SettingsRedirect() {
+  const { profile } = useAuth();
+  if (!profile) return <Navigate to="/login" replace />;
+  return <Navigate to={profile.role === 'teacher' ? '/teacher/settings' : '/student/settings'} replace />;
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Public — / goes straight to registration (role select) */}
-          <Route path="/" element={<RoleSelect />} />
+          {/* Public — signed-in users land on their role home, others register */}
+          <Route path="/" element={<HomeRedirect />} />
           <Route path="/register" element={<RoleSelect />} />
           <Route path="/register/:role" element={<Register />} />
           <Route path="/login" element={<Login />} />
@@ -66,6 +83,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 <Route path="results" element={<TeacherResults />} />
                 <Route path="results/:sessionId" element={<GameResultsTeacher />} />
                 <Route path="profile" element={<TeacherProfile />} />
+                <Route path="settings" element={<Settings />} />
               </Route>
             </Route>
 
@@ -76,11 +94,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 <Route path="achievements" element={<StudentAchievements />} />
                 <Route path="leaderboard" element={<StudentLeaderboard />} />
                 <Route path="profile" element={<StudentProfile />} />
+                <Route path="settings" element={<Settings />} />
               </Route>
             </Route>
 
-            {/* Role-neutral authenticated */}
-            <Route path="/settings" element={<Settings />} />
+            {/* Role-neutral aliases: send users to their role-scoped home/settings */}
+            <Route path="/settings" element={<SettingsRedirect />} />
           </Route>
 
           {/* Live gameplay (outside shell, own full-screen layout) */}

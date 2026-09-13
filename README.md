@@ -1,6 +1,6 @@
-# ⛏️ MINED — Learn. Play. Level Up.
+# ⛏️ Mined — Learn. Play. Level Up.
 
-MINED is a multiplayer, gamified classroom learning and quiz platform. Teachers build quizzes, choose one of **7 game modes**, and run live games with a short game code. Students join, play in real time, and earn **XP, levels, streaks, achievements and rankings**.
+Mined is a multiplayer, gamified classroom learning and quiz platform. Teachers build quizzes, choose one of **7 game modes**, and run live games with a short game code. Students join, play in real time, and earn **XP, levels, streaks, achievements and rankings**.
 
 > Turn learning into a game.
 

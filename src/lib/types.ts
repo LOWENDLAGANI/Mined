@@ -1,4 +1,4 @@
-// MINED — Shared Firestore document types.
+// Mined — Shared Firestore document types.
 
 export type Role = 'teacher' | 'student';
 

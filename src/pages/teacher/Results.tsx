@@ -1,11 +1,11 @@
-// MINED — Teacher results: list of finished sessions.
+// Mined — Teacher results: list of finished sessions.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { Button, Card, EmptyState } from '../../components/ui';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { formatNumber, modeIcon, modeLabel, timeAgo } from '../../lib/format';
+import { modeIcon, modeLabel, timeAgo } from '../../lib/format';
 
 interface SessionSummary {
   id: string;
@@ -55,7 +55,6 @@ export function TeacherResults() {
           ))}
         </div>
       )}
-      {formatNumber(0) === '' && null}
     </div>
   );
 }

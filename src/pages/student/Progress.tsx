@@ -1,4 +1,4 @@
-// MINED — Student progress page.
+// Mined — Student progress page.
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { Card, Panel, ProgressBar, Stat, EmptyState } from '../../components/ui';
@@ -92,7 +92,7 @@ export function StudentProgress() {
       ) : (
         <div className="mt-1">
           {results.map((r, i) => (
-            <Card key={i} className="rank-row" texture={false}>
+            <Card key={i} className="rank-row">
               <span className="rank-num">#{r.rank}</span>
               <span aria-hidden="true">{modeIcon(r.gameMode)}</span>
               <span className="rank-name">{modeLabel(r.gameMode)} · {r.correctAnswers}/{r.questionsAnswered} correct</span>

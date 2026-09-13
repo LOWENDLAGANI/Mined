@@ -1,4 +1,4 @@
-// MINED — Registration step 2: create the account.
+// Mined — Registration step 2: create the account.
 import { useState, type FormEvent } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button, Input } from '../components/ui';
@@ -70,13 +70,8 @@ export function Register() {
     <div className="page-center">
       <div className="glass-card" style={{ textAlign: 'left' }}>
         <h1 style={{ textAlign: 'center' }}>
-          {safeRole === 'teacher' ? 'Teacher' : 'Student'} sign-up
+          {safeRole === 'teacher' ? 'Teacher sign-up' : 'Student sign-up'}
         </h1>
-        <p className="muted" style={{ textAlign: 'center', margin: '0 auto 18px', maxWidth: 340 }}>
-          {safeRole === 'teacher'
-            ? 'Create quizzes and host live games for your class.'
-            : 'Join live games, earn XP and level up.'}
-        </p>
 
         <form onSubmit={onSubmit} style={{ width: '100%' }}>
           <Input label="Display name" name="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required maxLength={40} placeholder={safeRole === 'teacher' ? 'Mr. Alex' : 'Alex'} />

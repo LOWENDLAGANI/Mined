@@ -1,4 +1,4 @@
-// MINED — Settings (shared by both roles).
+// Mined — Settings (shared by both roles).
 import { useState, type FormEvent } from 'react';
 import { Button, Input, Panel } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
@@ -7,10 +7,11 @@ import { AVATARS } from '../assets/avatars';
 import { friendlyFirestoreError } from '../lib/format';
 
 export function Settings() {
-  const { profile, refreshProfile } = useAuth();
+  const { profile, refreshProfile, resetPassword } = useAuth();
   const [name, setName] = useState(profile?.displayName ?? '');
   const [avatarId, setAvatarId] = useState(profile?.avatarId ?? 'a1');
   const [saved, setSaved] = useState(false);
+  const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -33,11 +34,12 @@ export function Settings() {
   }
 
   async function onResetPassword() {
+    setError('');
     try {
-      const { resetPassword } = useAuth();
       if (profile?.email) {
         await resetPassword(profile.email);
-        alert('Password reset email sent to ' + profile.email);
+        setSent(true);
+        setTimeout(() => setSent(false), 4000);
       }
     } catch (err) {
       setError(friendlyFirestoreError((err as { code?: string })?.code ?? ''));
@@ -80,9 +82,14 @@ export function Settings() {
 
       <Panel className="mt-2">
         <h3>Account</h3>
-        <p className="muted">Email: {profile.email}</p>
-        <p className="muted">Role: {profile.role}</p>
-        <Button variant="secondary" onClick={onResetPassword}>Send password reset email</Button>
+        <p className="muted" style={{ marginBottom: 10 }}>
+          Signed in as <strong>{profile.email}</strong> ({profile.role})
+        </p>
+        <div className="row">
+          <Button variant="secondary" onClick={onResetPassword}>Send password reset email</Button>
+          {sent && <span className="ok-text">Reset email sent ✓</span>}
+          {error && <span className="error-text">{error}</span>}
+        </div>
       </Panel>
     </div>
   );

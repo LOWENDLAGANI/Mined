@@ -1,4 +1,4 @@
-// MINED — Centralized scoring / XP / level configuration.
+// Mined — Centralized scoring / XP / level configuration.
 // Balance the whole game economy here; never hard-code these elsewhere.
 
 export const GAME_REWARD_CONFIG = {

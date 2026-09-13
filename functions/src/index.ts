@@ -1,4 +1,4 @@
-// MINED — Cloud Functions (trusted backend).
+// Mined — Cloud Functions (trusted backend).
 //
 // SECURITY MODEL
 // The client NEVER computes correctness, score, XP, streaks or progression.

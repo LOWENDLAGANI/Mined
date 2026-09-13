@@ -1,4 +1,4 @@
-// MINED — Auth context: holds Firebase auth state + Firestore profile/role.
+// Mined — Auth context: holds Firebase auth state + Firestore profile/role.
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 import {
   onAuthStateChanged,

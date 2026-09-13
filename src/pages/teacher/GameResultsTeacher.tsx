@@ -1,4 +1,4 @@
-// MINED — Teacher class results & analytics for one finished session.
+// Mined — Teacher class results & analytics for one finished session.
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Card, EmptyState, Panel, Stat } from '../../components/ui';
@@ -115,7 +115,7 @@ export function GameResultsTeacher() {
               <h2 className="mt-3">Question performance</h2>
               <div className="mt-1">
                 {stats.perQ.map((pq) => (
-                  <Card key={pq.q.id} className="rank-row" texture={false}>
+                  <Card key={pq.q.id} className="rank-row">
                     <span className="rank-num">Q{pq.index + 1}</span>
                     <span className="rank-name" style={{ fontSize: '0.92rem' }}>{pq.q.question}</span>
                     <span className="muted" style={{ fontSize: '0.85rem' }}>

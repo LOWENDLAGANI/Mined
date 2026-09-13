@@ -1,4 +1,4 @@
-// MINED — Login.
+// Mined — Login.
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button, Input } from '../components/ui';
@@ -49,10 +49,7 @@ export function Login() {
   return (
     <div className="page-center">
       <div className="glass-card">
-        <h1>Welcome back</h1>
-        <p className="muted" style={{ margin: '0 auto 18px', maxWidth: 340 }}>
-          Log in to keep playing.
-        </p>
+        <h1>Log in</h1>
         <form onSubmit={onSubmit} style={{ width: '100%', textAlign: 'left' }}>
           <Input label="Email" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
           <Input label="Password" name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" error={error || undefined} />
@@ -63,7 +60,7 @@ export function Login() {
           <Link to="/forgot-password">Forgot password?</Link>
         </p>
         <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
-          New to MINED? <Link to="/register">Create an account</Link>
+          New to Mined? <Link to="/register">Create an account</Link>
         </p>
       </div>
     </div>

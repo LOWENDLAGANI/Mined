@@ -1,4 +1,4 @@
-// MINED — Student profile.
+// Mined — Student profile.
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { Panel, Stat } from '../../components/ui';

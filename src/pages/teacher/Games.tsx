@@ -1,4 +1,4 @@
-// MINED — Games: list of hosted sessions.
+// Mined — Games: list of hosted sessions.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';

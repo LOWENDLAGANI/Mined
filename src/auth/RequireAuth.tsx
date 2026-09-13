@@ -1,4 +1,4 @@
-// MINED — Protected routes. Verify Firebase auth state AND Firestore role
+// Mined — Protected routes. Verify Firebase auth state AND Firestore role
 // before rendering role-specific pages (spec §8).
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';

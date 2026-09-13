@@ -1,4 +1,4 @@
-// MINED — Replaceable texture system.
+// Mined — Replaceable texture system.
 //
 // ── HOW TO CUSTOMIZE (no code changes needed) ──────────────────────────────
 // Drop an image into  src/assets/textures/  and name it exactly after a slot:
@@ -32,43 +32,43 @@ export interface TextureSlot {
 // ── Built-in placeholders (CSS gradients) ──────────────────────────────────
 const PLACEHOLDERS: Record<string, TextureSlot> = {
   texture_background: {
-    value: 'radial-gradient(1200px 800px at 20% -10%, #2d2b55 0%, transparent 60%), radial-gradient(1000px 700px at 110% 20%, #1b3a5c 0%, transparent 55%), linear-gradient(160deg, #0b0f1e 0%, #101830 100%)',
+    value: 'linear-gradient(180deg, #f4f1e8 0%, #efebdf 100%)',
     kind: 'css',
   },
   texture_panel: {
-    value: 'linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))',
+    value: 'linear-gradient(180deg, rgba(38, 35, 28, 0.015), rgba(38, 35, 28, 0.045))',
     kind: 'css',
   },
   texture_card: {
-    value: 'linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.04))',
+    value: 'linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.2))',
     kind: 'css',
   },
   texture_button: {
-    value: 'linear-gradient(180deg, #7d6ff2, #5a48d6)',
+    value: 'linear-gradient(180deg, #2a7a5e, #256d54)',
     kind: 'css',
   },
   texture_header: {
-    value: 'linear-gradient(180deg, rgba(11,15,30,0.9), rgba(11,15,30,0.7))',
+    value: 'linear-gradient(180deg, #fdfcf8, #f8f5ec)',
     kind: 'css',
   },
   texture_game_background: {
-    value: 'radial-gradient(900px 600px at 50% -20%, #33265e 0%, transparent 60%), linear-gradient(180deg, #0d1226 0%, #131a38 100%)',
+    value: 'linear-gradient(180deg, #f4f1e8 0%, #e9e4d4 100%)',
     kind: 'css',
   },
   texture_race_track: {
-    value: 'linear-gradient(180deg, #14203f 0%, #1a2a52 100%)',
+    value: 'linear-gradient(180deg, #fbf9f2 0%, #f1ecdd 100%)',
     kind: 'css',
   },
   texture_boss_arena: {
-    value: 'radial-gradient(700px 500px at 50% 30%, #4a1f3d 0%, transparent 65%), linear-gradient(180deg, #12081a 0%, #1d0f2e 100%)',
+    value: 'linear-gradient(180deg, #f6efe2 0%, #eadfca 100%)',
     kind: 'css',
   },
   texture_treasure_map: {
-    value: 'linear-gradient(180deg, #13322e 0%, #1a4a40 100%)',
+    value: 'linear-gradient(180deg, #f0ecdc 0%, #e4deca 100%)',
     kind: 'css',
   },
   texture_modal: {
-    value: 'linear-gradient(180deg, rgba(20,26,52,0.98), rgba(14,18,38,0.98))',
+    value: 'linear-gradient(180deg, #fdfcf8, #f8f5ec)',
     kind: 'css',
   },
 };
@@ -109,10 +109,10 @@ export interface BossArt {
 }
 
 export const BOSS_ART: BossArt[] = [
-  { name: 'Professor Gneiss', emoji: '🧙', color: '#6c5ce7' },
-  { name: 'Countess Carbide', emoji: '🦇', color: '#e17055' },
-  { name: 'The Kraken of Calculus', emoji: '🐙', color: '#0984e3' },
-  { name: 'Magma Wyrm', emoji: '🐉', color: '#d63031' },
+  { name: 'Professor Gneiss', emoji: '🧙', color: '#256d54' },
+  { name: 'Countess Carbide', emoji: '🦇', color: '#c05b2e' },
+  { name: 'The Kraken of Calculus', emoji: '🐙', color: '#34618f' },
+  { name: 'Magma Wyrm', emoji: '🐉', color: '#b3402f' },
 ];
 
 export function bossArtFor(difficulty: string): BossArt {

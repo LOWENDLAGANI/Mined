@@ -1,4 +1,4 @@
-// MINED — Forgot password (sends Firebase reset email).
+// Mined — Forgot password (sends Firebase reset email).
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Input } from '../components/ui';

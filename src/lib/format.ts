@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-// MINED — shared formatting helpers + friendly error mapping.
+// Mined — shared formatting helpers + friendly error mapping.
 
 export interface ImportMetaEnv {
   readonly VITE_FIREBASE_API_KEY: string;

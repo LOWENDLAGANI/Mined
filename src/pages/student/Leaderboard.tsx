@@ -1,4 +1,4 @@
-// MINED — Student leaderboards (global + weekly).
+// Mined — Student leaderboards (global + weekly).
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { Panel } from '../../components/ui';

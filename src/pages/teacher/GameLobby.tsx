@@ -1,4 +1,4 @@
-// MINED — Teacher game lobby + live game control (host screen).
+// Mined — Teacher game lobby + live game control (host screen).
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
@@ -79,10 +79,10 @@ export function GameLobby() {
             <h3 style={{ margin: 0 }}>Players</h3>
             <div className="row">
               <Button size="sm" variant="secondary" onClick={() => lockJoining(session.id, !session.settings.joinLocked)}>
-                {session.settings.joinLocked ? '🔒 Joining locked' : '🔓 Lock joining'}
+                {session.settings.joinLocked ? 'Joining locked' : 'Lock joining'}
               </Button>
               <Button size="lg" variant="success" onClick={onStart} disabled={busy || players.length === 0}>
-                ▶ START GAME{players.length === 0 ? ' (need players)' : ''}
+                Start game{players.length === 0 ? ' — need players' : ''}
               </Button>
             </div>
           </div>
@@ -107,7 +107,7 @@ export function GameLobby() {
         </>
       ) : isFinished ? (
         <Panel className="xp-hero">
-          <h2>Game finished 🏁</h2>
+          <h2>Game finished</h2>
           <p className="muted">Results and class analytics are ready.</p>
           <Link to={`/teacher/results/${session.id}`}><Button size="lg" variant="success">Open class results</Button></Link>
         </Panel>
@@ -120,7 +120,7 @@ export function GameLobby() {
               {players.filter((p) => (p.currentGameState === 'answered')).length} / {players.length} answered
             </p>
             <Button size="lg" variant="success" onClick={onNext} disabled={busy}>
-              {session.currentQuestionIndex + 1 >= session.questionCount ? 'Finish game ▶' : 'Next question ▶'}
+              {session.currentQuestionIndex + 1 >= session.questionCount ? 'Finish game' : 'Next question'}
             </Button>
           </Panel>
 

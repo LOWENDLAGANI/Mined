@@ -1,4 +1,4 @@
-// MINED — Game mode definitions (QUIZ DATA ≠ GAME MODE).
+// Mined — Game mode definitions (QUIZ DATA ≠ GAME MODE).
 // Each mode declares display metadata + its gameplay hooks' parameters.
 // The engine in src/game/engine.ts consumes these; adding a future mode
 // means adding an entry here + handlers, without touching quizzes.

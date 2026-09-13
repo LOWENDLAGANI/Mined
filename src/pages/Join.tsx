@@ -1,4 +1,4 @@
-// MINED — Join Game: student enters a game code and is placed into the session.
+// Mined — Join Game: student enters a game code and is placed into the session.
 import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button, Input } from '../components/ui';

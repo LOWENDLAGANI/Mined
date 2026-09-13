@@ -1,4 +1,4 @@
-// MINED — Applies texture slots to CSS variables at startup.
+// Mined — Applies texture slots to CSS variables at startup.
 // Keeps styles.css static while letting user-dropped images in
 // src/assets/textures/ flow to every page automatically.
 import { APP_ASSETS } from './textures';

@@ -1,4 +1,4 @@
-// MINED — My Quizzes: list + CRUD actions.
+// Mined — My Quizzes: list + CRUD actions.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
@@ -26,7 +26,7 @@ export function TeacherQuizzes() {
     <div>
       <div className="row-between mb-2">
         <h1>My Quizzes</h1>
-        <Link to="/teacher/quizzes/new"><Button>✨ Create Quiz</Button></Link>
+        <Link to="/teacher/quizzes/new"><Button>Create quiz</Button></Link>
       </div>
 
       {loading ? (
@@ -48,7 +48,7 @@ export function TeacherQuizzes() {
               </div>
               <div className="row mt-1" style={{ flexWrap: 'wrap' }}>
                 <Link to={`/teacher/quizzes/${q.id}`}><Button size="sm">Edit</Button></Link>
-                <Link to={`/teacher/quizzes/${q.id}?start=1`}><Button size="sm" variant="success">▶ Play</Button></Link>
+                <Link to={`/teacher/quizzes/${q.id}?start=1`}><Button size="sm" variant="success">Host</Button></Link>
                 <Button size="sm" variant="secondary" disabled={busy} onClick={async () => { setBusy(true); await duplicateQuiz(q); setBusy(false); }}>Duplicate</Button>
                 <Button size="sm" variant="secondary" onClick={() => updateQuiz(q.id, { published: !q.published })}>
                   {q.published ? 'Unpublish' : 'Publish'}

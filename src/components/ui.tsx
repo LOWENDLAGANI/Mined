@@ -1,6 +1,6 @@
-// MINED — Shared UI primitives.
+// Mined — Shared UI primitives (flat paper-and-ink theme; backgrounds come
+// from CSS, not inline textures).
 import { type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type CSSProperties, useEffect } from 'react';
-import { APP_ASSETS } from '../assets/textures';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
 
@@ -13,15 +13,11 @@ interface BtnProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export function Button({ variant = 'primary', size = 'md', full, className = '', ...rest }: BtnProps) {
   const cls = ['btn', `btn-${variant}`, `btn-${size}`, full ? 'btn-full' : '', className].filter(Boolean).join(' ');
   return (
-    <button
-      className={cls}
-      style={variant === 'primary' ? { backgroundImage: APP_ASSETS.texture_button.value } : undefined}
-      {...rest}
-    />
+    <button className={cls} {...rest} />
   );
 }
 
-export function Card({ children, className = '', onClick, texture = true }: { children: ReactNode; className?: string; onClick?: () => void; texture?: boolean }) {
+export function Card({ children, className = '', onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
   return (
     <div
       className={`card ${onClick ? 'card-clickable' : ''} ${className}`}
@@ -29,7 +25,6 @@ export function Card({ children, className = '', onClick, texture = true }: { ch
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
-      style={texture ? { backgroundImage: APP_ASSETS.texture_card.value } : undefined}
     >
       {children}
     </div>
@@ -38,7 +33,7 @@ export function Card({ children, className = '', onClick, texture = true }: { ch
 
 export function Panel({ children, className = '', style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
   return (
-    <section className={`panel ${className}`} style={{ backgroundImage: APP_ASSETS.texture_panel.value, ...style }}>
+    <section className={`panel ${className}`} style={style}>
       {children}
     </section>
   );
@@ -87,7 +82,7 @@ export function ProgressBar({ value, label, color, className }: { value: number;
       aria-valuemax={100}
       aria-label={label ?? 'Progress'}
     >
-      <div className="progress-fill" style={{ width: `${pct}%`, background: color ?? 'linear-gradient(90deg, #00b894, #6c5ce7)' }} />
+      <div className="progress-fill" style={{ width: `${pct}%`, background: color }} />
     </div>
   );
 }
@@ -113,7 +108,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        style={{ backgroundImage: APP_ASSETS.texture_modal.value }}
+        style={{}}
       >
         <div className="modal-head">
           <h2>{title}</h2>

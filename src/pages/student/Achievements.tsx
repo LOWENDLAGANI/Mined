@@ -1,4 +1,4 @@
-// MINED — Student achievements gallery.
+// Mined — Student achievements gallery.
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { Card, EmptyState } from '../../components/ui';

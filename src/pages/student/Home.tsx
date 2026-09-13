@@ -1,8 +1,7 @@
-// MINED — Student home (Level / XP / streak / JOIN GAME / recent games).
+// Mined — Student home (Level / XP / streak / JOIN GAME / recent games).
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { Logo } from '../../components/Logo';
 import { Button, Card, Panel, ProgressBar, Stat, EmptyState } from '../../components/ui';
 import { levelProgress } from '../../lib/scoring';
 import { ACHIEVEMENTS } from '../../lib/types';
@@ -55,10 +54,10 @@ export function StudentHome() {
           />
           <div>
             <div style={{ fontWeight: 900, fontSize: '1.3rem' }}>{profile.displayName}</div>
-            <div className="muted">Ready to level up, {profile.displayName.split(' ')[0]}?</div>
+            <div className="muted">{profile.role === 'teacher' ? 'Teacher account' : 'Student'}</div>
           </div>
         </div>
-        <Button size="lg" onClick={() => nav('/join')}>🎮 JOIN GAME</Button>
+        <Button size="lg" onClick={() => nav('/join')}>Join a game</Button>
       </div>
 
       <Panel className="xp-hero">
@@ -70,7 +69,7 @@ export function StudentHome() {
           <span>{formatNumber(lp.currentXP)} XP</span>
           <span className="muted">{formatNumber(lp.nextLevelXP)} XP to Level {lp.level + 1}</span>
         </div>
-        <div className="streak-flame mt-2">🔥 {profile.currentStreak}-day streak{profile.longestStreak > 0 ? ` · best: ${profile.longestStreak}` : ''}</div>
+        <div className="streak-flame mt-2">{profile.currentStreak}-day streak{profile.longestStreak > 0 ? ` · best: ${profile.longestStreak}` : ''}</div>
       </Panel>
 
       <div className="grid grid-4 mt-2">
@@ -91,7 +90,7 @@ export function StudentHome() {
           ) : (
             <div className="stack">
               {recent.map((r, i) => (
-                <Card key={i} className="rank-row" texture={false}>
+                <Card key={i} className="rank-row">
                   <span aria-hidden="true">{modeIcon(r.gameMode)}</span>
                   <span className="rank-name">{modeLabel(r.gameMode)} · {r.score} pts</span>
                   <span className="muted" style={{ fontSize: '0.85rem' }}>{timeAgo(r.createdAt)}</span>
@@ -121,10 +120,7 @@ export function StudentHome() {
         </Panel>
       </div>
 
-      <div className="mt-3" style={{ textAlign: 'center' }}>
-        <Logo size="sm" />
-        <span className="muted" style={{ marginLeft: 10, fontSize: '0.85rem' }}>Turn learning into a game.</span>
-      </div>
+
     </div>
   );
 }

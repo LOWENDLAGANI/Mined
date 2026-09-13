@@ -1,4 +1,4 @@
-// MINED — Student game results screen.
+// Mined — Student game results screen.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Panel, ProgressBar } from '../../components/ui';

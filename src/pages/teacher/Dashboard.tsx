@@ -1,4 +1,4 @@
-// MINED — Teacher dashboard.
+// Mined — Teacher dashboard.
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
@@ -39,12 +39,11 @@ export function TeacherDashboard() {
     <div>
       <div className="row-between mb-2">
         <div>
-          <h1>Welcome, {profile.displayName} 👋</h1>
-          <p className="muted" style={{ margin: 0 }}>Turn learning into a game.</p>
+          <h1>Welcome, {profile.displayName}</h1>
         </div>
         <div className="row">
-          <Link to="/teacher/quizzes/new"><Button size="lg">✨ Create Quiz</Button></Link>
-          <Link to="/teacher/quizzes"><Button size="lg" variant="success">▶ Start Game</Button></Link>
+          <Link to="/teacher/quizzes/new"><Button size="lg">Create quiz</Button></Link>
+          <Link to="/teacher/quizzes"><Button size="lg" variant="success">Host a game</Button></Link>
         </div>
       </div>
 
@@ -71,7 +70,7 @@ export function TeacherDashboard() {
           ) : (
             <div className="stack">
               {recent.map((r, i) => (
-                <Card key={i} className="rank-row" texture={false}>
+                <Card key={i} className="rank-row">
                   <span aria-hidden="true">{modeIcon(r.gameMode)}</span>
                   <span className="rank-name">{r.displayName} · {modeLabel(r.gameMode)}</span>
                   <span className="muted">{timeAgo(r.createdAt)}</span>

@@ -1,4 +1,4 @@
-// MINED — Client-side game service.
+// Mined — Client-side game service.
 // NOTE: All authoritative operations (join, scoring, progression) are performed
 // by Cloud Functions (see functions/src/index.ts). The client only reads state
 // and invokes callables; it never writes scores/XP/game state directly.
