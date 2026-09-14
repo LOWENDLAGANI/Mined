@@ -124,11 +124,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [ensureProfile]);
 
   const login = useCallback(async (email: string, password: string) => {
+    if (!firebaseConfigured) throw new Error('Firebase is not configured. Copy .env.example to .env, fill in your Firebase web config, then rebuild and redeploy.');
     const cred = await signInWithEmailAndPassword(auth, email, password);
     await ensureProfile(cred.user);
   }, [ensureProfile]);
 
   const loginGoogle = useCallback(async () => {
+    if (!firebaseConfigured) throw new Error('Firebase is not configured. Copy .env.example to .env, fill in your Firebase web config, then rebuild and redeploy.');
     const cred = await signInWithPopup(auth, googleProvider);
     // Provision/read profile before resolving so post-login navigation works.
     await ensureProfile(cred.user);

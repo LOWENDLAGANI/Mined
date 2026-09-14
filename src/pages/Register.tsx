@@ -5,6 +5,7 @@ import { Button, Input } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { AVATARS } from '../assets/avatars';
 import { friendlyAuthError } from '../lib/format';
+import { firebaseConfigured } from '../lib/firebase';
 
 export function Register() {
   const { role } = useParams<{ role: string }>();
@@ -47,7 +48,8 @@ export function Register() {
       await register({ role: safeRole!, displayName: displayName.trim(), email: email.trim(), password, avatarId });
       nav(safeRole === 'teacher' ? '/teacher/dashboard' : '/student');
     } catch (err) {
-      setError(friendlyAuthError((err as { code?: string }).code ?? ''));
+      const e = err as { code?: string; message?: string };
+      setError(friendlyAuthError(e.code ?? '', e.message));
     } finally {
       setBusy(false);
     }
@@ -60,7 +62,8 @@ export function Register() {
       await loginGoogle();
       nav('/student');
     } catch (err) {
-      setError(friendlyAuthError((err as { code?: string }).code ?? ''));
+      const e = err as { code?: string; message?: string };
+      setError(friendlyAuthError(e.code ?? '', e.message));
     } finally {
       setBusy(false);
     }
@@ -72,6 +75,11 @@ export function Register() {
         <h1 style={{ textAlign: 'center' }}>
           {safeRole === 'teacher' ? 'Teacher sign-up' : 'Student sign-up'}
         </h1>
+        {!firebaseConfigured && (
+          <p className="error-text" role="alert" style={{ marginBottom: 12 }}>
+            Server connection isn’t configured on this deployment — sign-up is disabled. The site owner needs to add the Firebase environment variables and redeploy.
+          </p>
+        )}
 
         <form onSubmit={onSubmit} style={{ width: '100%' }}>
           <Input label="Display name" name="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required maxLength={40} placeholder={safeRole === 'teacher' ? 'Mr. Alex' : 'Alex'} />

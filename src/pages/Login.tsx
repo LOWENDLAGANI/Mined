@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button, Input } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { friendlyAuthError } from '../lib/format';
+import { firebaseConfigured } from '../lib/firebase';
 
 export function Login() {
   const nav = useNavigate();
@@ -30,7 +31,8 @@ export function Login() {
     try {
       await login(email.trim(), password);
     } catch (err) {
-      setError(friendlyAuthError((err as { code?: string }).code ?? ''));
+      const e = err as { code?: string; message?: string };
+      setError(friendlyAuthError(e.code ?? '', e.message));
       setBusy(false);
     }
   }
@@ -41,7 +43,8 @@ export function Login() {
     try {
       await loginGoogle();
     } catch (err) {
-      setError(friendlyAuthError((err as { code?: string }).code ?? ''));
+      const e = err as { code?: string; message?: string };
+      setError(friendlyAuthError(e.code ?? '', e.message));
       setBusy(false);
     }
   }
@@ -50,6 +53,11 @@ export function Login() {
     <div className="page-center">
       <div className="glass-card">
         <h1>Log in</h1>
+        {!firebaseConfigured && (
+          <p className="error-text" role="alert" style={{ marginBottom: 12 }}>
+            Server connection isn’t configured on this deployment — sign-in is disabled. The site owner needs to add the Firebase environment variables and redeploy.
+          </p>
+        )}
         <form onSubmit={onSubmit} style={{ width: '100%', textAlign: 'left' }}>
           <Input label="Email" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
           <Input label="Password" name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" error={error || undefined} />

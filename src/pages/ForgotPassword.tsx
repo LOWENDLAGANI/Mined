@@ -20,7 +20,8 @@ export function ForgotPassword() {
       await resetPassword(email.trim());
       setSent(true);
     } catch (err) {
-      setError(friendlyAuthError((err as { code?: string }).code ?? ''));
+      const e = err as { code?: string; message?: string };
+      setError(friendlyAuthError(e.code ?? '', e.message));
     } finally {
       setBusy(false);
     }

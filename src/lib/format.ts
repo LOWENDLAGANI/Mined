@@ -61,8 +61,13 @@ export function modeIcon(mode: string): string {
 }
 
 /** Map Firebase errors to friendly messages (spec §40). */
-export function friendlyAuthError(code: string): string {
+export function friendlyAuthError(code: string, message?: string): string {
   const map: Record<string, string> = {
+    'auth/invalid-api-key': 'The Firebase API key is invalid — the deployed build is missing its environment configuration. Rebuild with a proper .env file.',
+    'auth/api-key-not-valid.-please-pass-a-valid-api-key.': 'The Firebase API key is invalid — the deployed build is missing its environment configuration. Rebuild with a proper .env file.',
+    'auth/unauthorized-domain': 'This site’s domain isn’t allowed for sign-in. Add it under Firebase Console → Authentication → Settings → Authorized domains.',
+    'auth/configuration-not-found': 'Email/password sign-in isn’t enabled yet. Enable it under Firebase Console → Authentication → Sign-in method.',
+    'auth/operation-not-allowed': 'This sign-in method isn’t enabled yet. Enable it under Firebase Console → Authentication → Sign-in method.',
     'auth/invalid-email': 'That email address doesn’t look right.',
     'auth/user-disabled': 'This account has been disabled.',
     'auth/user-not-found': 'No account found with that email.',
@@ -74,7 +79,10 @@ export function friendlyAuthError(code: string): string {
     'auth/popup-closed-by-user': 'Google sign-in was cancelled.',
     'auth/network-request-failed': 'You appear to be offline. Check your connection.',
   };
-  return map[code] ?? 'Something went wrong. Please try again.';
+  if (map[code]) return map[code];
+  // App-thrown config errors carry their own actionable message — surface it.
+  if (message && /not configured|\.env/i.test(message)) return message;
+  return 'Something went wrong. Please try again.';
 }
 
 export function friendlyFirestoreError(code: string): string {

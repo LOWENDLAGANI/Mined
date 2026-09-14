@@ -6,18 +6,24 @@ import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
-const env = import.meta.env;
+const env = import.meta.env as Record<string, string | undefined>;
 
-export const firebaseConfigured = Boolean(env.VITE_FIREBASE_API_KEY && env.VITE_FIREBASE_PROJECT_ID && env.VITE_FIREBASE_APP_ID);
+// Accept both VITE_-prefixed (Vite convention) and unprefixed names, so the
+// app works whether vars are named VITE_FIREBASE_API_KEY or FIREBASE_API_KEY.
+function envVal(name: string): string | undefined {
+  return env[`VITE_${name}`] || env[name];
+}
+
+export const firebaseConfigured = Boolean(envVal('FIREBASE_API_KEY') && envVal('FIREBASE_PROJECT_ID') && envVal('FIREBASE_APP_ID'));
 
 // Placeholders keep SDK service constructors happy when env vars are absent.
 // They never reach a real server — all data calls check firebaseConfigured first.
 const firebaseConfig = {
-  apiKey: (env.VITE_FIREBASE_API_KEY as string) || 'demo-api-key',
-  authDomain: (env.VITE_FIREBASE_AUTH_DOMAIN as string) || 'demo.firebaseapp.com',
-  projectId: (env.VITE_FIREBASE_PROJECT_ID as string) || 'demo-project',
-  messagingSenderId: (env.VITE_FIREBASE_MESSAGING_SENDER_ID as string) || '0',
-  appId: (env.VITE_FIREBASE_APP_ID as string) || 'demo-app-id',
+  apiKey: envVal('FIREBASE_API_KEY') || 'demo-api-key',
+  authDomain: envVal('FIREBASE_AUTH_DOMAIN') || 'demo.firebaseapp.com',
+  projectId: envVal('FIREBASE_PROJECT_ID') || 'demo-project',
+  messagingSenderId: envVal('FIREBASE_MESSAGING_SENDER_ID') || '0',
+  appId: envVal('FIREBASE_APP_ID') || 'demo-app-id',
 };
 
 let app: FirebaseApp;
