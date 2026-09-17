@@ -8,10 +8,10 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
 
 const env = import.meta.env as Record<string, string | undefined>;
 
-// Accept both VITE_-prefixed (Vite convention) and unprefixed names, so the
-// app works whether vars are named VITE_FIREBASE_API_KEY or FIREBASE_API_KEY.
+// Accept unprefixed names (FIREBASE_API_KEY) as well as VITE_-prefixed and
+// FIREBASE_-prefixed names, so the app works with any naming convention.
 function envVal(name: string): string | undefined {
-  return env[`VITE_${name}`] || env[name];
+  return env[name] || env[`FIREBASE_${name}`] || env[`VITE_${name}`];
 }
 
 export const firebaseConfigured = Boolean(envVal('FIREBASE_API_KEY') && envVal('FIREBASE_PROJECT_ID') && envVal('FIREBASE_APP_ID'));

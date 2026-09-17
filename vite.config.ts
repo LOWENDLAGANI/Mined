@@ -4,6 +4,9 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  // Expose FIREBASE_-prefixed env vars (e.g. FIREBASE_API_KEY) to the client
+  // bundle, since Vercel rejects variable names with the VITE_ prefix.
+  envPrefix: ['VITE_', 'FIREBASE_'],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
