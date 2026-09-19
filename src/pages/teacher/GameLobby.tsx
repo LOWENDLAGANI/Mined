@@ -19,14 +19,16 @@ export function GameLobby() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [busy, setBusy] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [listenError, setListenError] = useState(false);
 
   useEffect(() => {
     if (!sessionId || !profile) return;
     const un1 = subscribeSession(sessionId, (s) => {
       if (!s) { setNotFound(true); return; }
       setSession(s);
-    });
-    const un2 = subscribePlayers(sessionId, setPlayers);
+    }, () => setListenError(true));
+    // onError → explicit banner; a silent failure here looked like "0 players".
+    const un2 = subscribePlayers(sessionId, setPlayers, () => setListenError(true));
     return () => { un1(); un2(); };
   }, [sessionId, profile]);
 
@@ -39,6 +41,14 @@ export function GameLobby() {
     return (
       <div className="page-center">
         <p className="error-text">Game not found or you don’t have access.</p>
+        <Link to="/teacher/games"><Button variant="secondary">Back to Games</Button></Link>
+      </div>
+    );
+  }
+  if (listenError) {
+    return (
+      <div className="page-center">
+        <p className="error-text">Lost connection to the game. Check your internet and refresh this page.</p>
         <Link to="/teacher/games"><Button variant="secondary">Back to Games</Button></Link>
       </div>
     );

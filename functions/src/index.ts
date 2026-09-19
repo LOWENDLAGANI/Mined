@@ -11,8 +11,6 @@
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2';
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
@@ -84,12 +82,8 @@ async function generateUniqueGameCode(): Promise<string> {
 }
 
 // ============================
-// Auth trigger: auto-provision profiles (covers Google sign-in)
+// Profile provisioning (covers Google sign-in)
 // ============================
-export const onUserCreated = onDocumentCreated('authEvents/{eventId}', async () => {
-  // placeholder no-op (kept minimal); real provisioning is via callable below
-});
-
 export const ensureProfile = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.');
@@ -167,20 +161,66 @@ export const createGameSession = onCall(async (request) => {
     endedAt: null,
   };
 
-  // Mode-specific defaults
+  // Mode-specific defaults (kept in sync with src/lib/gameModes.ts)
+  const s = sessionData.settings as Record<string, unknown>;
+  if (settings?.basePoints === undefined) s.basePoints = GAME_REWARD_CONFIG.basePointsPerQuestion;
+  if (settings?.speedBonus === undefined) s.speedBonus = true;
+  if (settings?.maxSpeedBonus === undefined) s.maxSpeedBonus = GAME_REWARD_CONFIG.maxSpeedBonusPoints;
+  if (settings?.showLeaderboard === undefined) s.showLeaderboard = true;
+  if (settings?.joinLocked === undefined) s.joinLocked = false;
   if (gameMode === 'boss') {
-    (sessionData.settings as Record<string, unknown>).bossHp =
-      questionCount * playerEstimate * GAME_REWARD_CONFIG.bossHpPerPlayerPerQuestion;
+    s.bossHp = questionCount * playerEstimate * GAME_REWARD_CONFIG.bossHpPerPlayerPerQuestion;
+    if (s.bossName === undefined) s.bossName = 'Professor Gneiss';
+    if (s.bossEmoji === undefined) s.bossEmoji = '🧙';
   }
-  if (gameMode === 'survival') {
-    (sessionData.settings as Record<string, unknown>).startLives = PLAYER_DEFAULT_HP;
-  }
-  if (gameMode === 'battle') {
-    (sessionData.settings as Record<string, unknown>).startHp = PLAYER_DEFAULT_HP;
-  }
+  if (gameMode === 'survival' && s.startLives === undefined) s.startLives = PLAYER_DEFAULT_HP;
+  if (gameMode === 'battle' && s.startHp === undefined) s.startHp = PLAYER_DEFAULT_HP;
+  if (gameMode === 'race' && s.finishDistance === undefined) s.finishDistance = 10;
+  if (gameMode === 'treasure' && s.totalCoins === undefined) s.totalCoins = 8;
+  if (gameMode === 'team' && s.teamCount === undefined) s.teamCount = 3;
 
   const ref = await db.collection('gameSessions').add(sessionData);
   return { sessionId: ref.id, gameCode };
+});
+
+// ============================
+// getPlayQuestions (any game participant)
+//
+// ANTI-CHEAT: returns the question list with `correctOption` and `explanation`
+// stripped. The client can render options but can never learn the answer key —
+// matching how Kahoot/Quizizz serve player devices. Correctness is revealed
+// only via the submitAnswer result or the server-written `lastReveal` doc.
+// ============================
+export const getPlayQuestions = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.');
+
+  const { sessionId } = (request.data ?? {}) as { sessionId?: string };
+  if (!sessionId) throw new HttpsError('invalid-argument', 'Missing sessionId.');
+
+  const sessSnap = await db.collection('gameSessions').doc(sessionId).get();
+  if (!sessSnap.exists) throw new HttpsError('not-found', 'Game not found.');
+  const session = sessSnap.data()!;
+
+  // Only the hosting teacher or an actual player of this session may read.
+  if (session.teacherId !== uid) {
+    const playerSnap = await sessSnap.ref.collection('players').doc(uid).get();
+    if (!playerSnap.exists) throw new HttpsError('permission-denied', 'You are not in this game.');
+  }
+
+  const questionsSnap = await db.collection('quizzes').doc(session.quizId).collection('questions').orderBy('order', 'asc').get();
+  const questions = questionsSnap.docs.map((d) => {
+    const q = d.data() as { question?: string; options?: string[]; timeLimit?: number; points?: number };
+    return {
+      id: d.id,
+      question: q.question ?? '',
+      options: q.options ?? [],
+      timeLimit: q.timeLimit ?? 20,
+      points: q.points ?? GAME_REWARD_CONFIG.basePointsPerQuestion,
+      // NOTE: correctOption and explanation deliberately omitted.
+    };
+  });
+  return { ok: true, questions };
 });
 
 // ============================
@@ -298,11 +338,20 @@ async function openQuestion(sessionId: string, index: number) {
   const startedAt = new Date();
   const endsAt = new Date(startedAt.getTime() + timeLimit * 1000);
 
+  // Reset every player's answered flag so the host's "X / N answered" counter
+  // restarts at 0 for the new question.
+  const playersSnap = await sessRef.collection('players').get();
+  const resetBatch = db.batch();
+  playersSnap.forEach((p) => resetBatch.update(p.ref, { currentGameState: 'waiting' }));
+  await resetBatch.commit();
+
   await sessRef.update({
     status: 'question_active',
     currentQuestionIndex: index,
     questionStartedAt: startedAt.toISOString(),
     questionEndsAt: endsAt.toISOString(),
+    // Clear the previous question's reveal so clients never see a stale key.
+    lastReveal: FieldValue.delete(),
   });
 
   // Server-side deadline: auto-close the question.
@@ -316,7 +365,23 @@ async function closeQuestion(sessionId: string, index: number) {
   if (!snap.exists) return;
   const s = snap.data()!;
   if (s.status !== 'question_active' || s.currentQuestionIndex !== index) return;
-  await sessRef.update({ status: 'question_results' });
+
+  // Publish the reveal server-side (correct option + explanation) so students
+  // can see the answer without ever having received the key up front.
+  const quizSnap = await db.collection('quizzes').doc(s.quizId).get();
+  let reveal: { correctOption: number; explanation: string } | null = null;
+  if (quizSnap.exists) {
+    const qSnap = await quizSnap.ref.collection('questions').orderBy('order', 'asc').get();
+    const qDoc = qSnap.docs[index];
+    if (qDoc) {
+      const q = qDoc.data() as { correctOption?: number; explanation?: string };
+      reveal = { correctOption: q.correctOption ?? 0, explanation: q.explanation ?? '' };
+    }
+  }
+  await sessRef.update({
+    status: 'question_results',
+    lastReveal: reveal ?? FieldValue.delete(),
+  });
 }
 
 export const advanceQuestion = onCall(async (request) => {
@@ -333,7 +398,9 @@ export const advanceQuestion = onCall(async (request) => {
   if (!['question_active', 'question_results', 'countdown'].includes(s.status)) {
     throw new HttpsError('failed-precondition', 'Cannot advance from current state.');
   }
-  await openQuestion(sessionId, (s.currentQuestionIndex ?? 0) + 1);
+  // From the lobby countdown, advanceQuestion opens question 1 (index 0).
+  const nextIndex = s.status === 'countdown' ? 0 : (s.currentQuestionIndex ?? 0) + 1;
+  await openQuestion(sessionId, nextIndex);
   return { ok: true };
 });
 
@@ -370,7 +437,7 @@ export const submitAnswer = onCall(async (request) => {
   }
   const questionDoc = docs[currentIndex];
   const q = questionDoc.data() as {
-    correctOption: number; points?: number; timeLimit?: number;
+    correctOption: number; points?: number; timeLimit?: number; explanation?: string;
   };
 
   // Deadline check (server time is authoritative).
@@ -383,6 +450,21 @@ export const submitAnswer = onCall(async (request) => {
   const playerRef = sessRef.collection('players').doc(uid);
   const answerRef = sessRef.collection('answers').doc(`${uid}_${questionId}`); // dedupe by ID
   const userRef = db.collection('users').doc(uid);
+
+  // Battle mode: pick the opponent target BEFORE the transaction (weakest first);
+  // the transaction re-reads the target via tx.get so the HP write is safe.
+  let battleTargetRef: FirebaseFirestore.DocumentReference | null = null;
+  if (session.gameMode === 'battle') {
+    const allPlayersSnap = await sessRef.collection('players').get();
+    const others = allPlayersSnap.docs
+      .filter((d) => d.id !== uid && d.data().eliminated !== true)
+      .map((d) => ({ ref: d.ref, score: (d.data().score as number) ?? 0, lives: (d.data().lives as number) ?? PLAYER_DEFAULT_HP }));
+    if (others.length > 0) {
+      // Target the HP-sorted weakest opponent, with small random tie-breaking.
+      others.sort((a, b) => a.lives - b.lives || a.score - b.score || Math.random() - 0.5);
+      battleTargetRef = others[0].ref;
+    }
+  }
 
   const result = await db.runTransaction(async (tx) => {
     const [playerSnap, existingAnswer, userSnap] = await Promise.all([
@@ -438,8 +520,19 @@ export const submitAnswer = onCall(async (request) => {
           break;
         }
         case 'battle': {
-          updates.lives = (player.lives ?? PLAYER_DEFAULT_HP); // HP persists; opponents lose via leaderboard pressure
-          modeEvent.damage = GAME_REWARD_CONFIG.battleDamagePerCorrect + (speedFrac > 0.5 ? GAME_REWARD_CONFIG.battleSpeedBonusDamage : 0);
+          // A correct answer is an attack: the targeted opponent loses HP.
+          const damage = GAME_REWARD_CONFIG.battleDamagePerCorrect + (speedFrac > 0.5 ? GAME_REWARD_CONFIG.battleSpeedBonusDamage : 0);
+          modeEvent.damage = damage;
+          if (battleTargetRef) {
+            const targetSnap = await tx.get(battleTargetRef);
+            if (targetSnap.exists) {
+              const targetLives = (targetSnap.data()!.lives as number) ?? PLAYER_DEFAULT_HP;
+              const newLives = Math.max(0, targetLives - damage);
+              tx.update(battleTargetRef, { lives: newLives, eliminated: newLives <= 0 });
+              modeEvent.target = battleTargetRef.id;
+              modeEvent.defeated = newLives <= 0;
+            }
+          }
           break;
         }
         case 'treasure': {
@@ -475,7 +568,7 @@ export const submitAnswer = onCall(async (request) => {
     tx.set(answerRef, answerData);
     tx.update(playerRef, updates);
 
-    return { isCorrect, pointsEarned, xpEarned, streak };
+    return { isCorrect, pointsEarned, xpEarned, streak, reveal: { correctOption: q.correctOption, explanation: (q as { explanation?: string }).explanation ?? '' } };
   });
 
   // Permanent XP on the user profile (outside session tx to reduce contention).
@@ -500,7 +593,7 @@ export const submitAnswer = onCall(async (request) => {
     await applyBossDamage(sessRef, session, GAME_REWARD_CONFIG.battleDamagePerCorrect);
   }
 
-  return { ok: true, ...result };
+  return { ok: true, ...result, reveal: { correctOption: q.correctOption, explanation: q.explanation ?? '' } };
 });
 
 async function applyBossDamage(
@@ -510,18 +603,26 @@ async function applyBossDamage(
 ) {
   const settings = (session.settings ?? {}) as Record<string, unknown>;
   const maxHp = (settings.bossHp as number) || 100;
+  let defeatedNow = false;
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(sessRef);
     if (!snap.exists) return;
     const s = snap.data()!;
+    if (s.status === 'finished' || s.bossDefeated === true) return;
     const current = (s.bossDamage as number) ?? 0;
     const next = Math.min(maxHp, current + damage);
-    tx.update(sessRef, { bossDamage: next });
-    if (next >= maxHp && s.status === 'question_active') {
-      // Boss defeated — end the game early with victory.
-      tx.update(sessRef, { status: 'question_results', bossDefeated: true });
+    if (next >= maxHp) {
+      tx.update(sessRef, { bossDamage: next, bossDefeated: true });
+      defeatedNow = true;
+    } else {
+      tx.update(sessRef, { bossDamage: next });
     }
   });
+  if (defeatedNow) {
+    // Outside the tx: finish once (finishSession re-checks state atomically).
+    const fresh = await sessRef.get();
+    if (fresh.exists) await finishSession(sessRef, fresh.data()!);
+  }
 }
 
 // ============================
@@ -548,6 +649,18 @@ async function finishSession(sessRef: FirebaseFirestore.DocumentReference, s: Fi
   const sessionId = sessRef.id;
   const settings = (s.settings ?? {}) as Record<string, unknown>;
 
+  // Atomically claim the finish so concurrent paths (teacher end, boss defeat,
+  // last question auto-finish) award players exactly once.
+  const claim = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(sessRef);
+    if (!snap.exists) return false;
+    const cur = snap.data()!;
+    if (cur.status === 'finished') return false;
+    tx.update(sessRef, { status: 'finished', endedAt: new Date().toISOString() });
+    return true;
+  });
+  if (!claim) return;
+
   // Determine winner(s)
   const playersSnap = await sessRef.collection('players').get();
   const players = playersSnap.docs.map((d) => d.data() as Record<string, unknown>);
@@ -567,13 +680,27 @@ async function finishSession(sessRef: FirebaseFirestore.DocumentReference, s: Fi
     winnerUids = (survivors.length > 0 ? survivors : players)
       .filter((p) => (p.score as number) === bestScore)
       .map((p) => p.uid as string);
+  } else if (s.gameMode === 'race') {
+    // Race: whoever progressed furthest along the track wins; score only breaks ties.
+    const bestPos = Math.max(...players.map((p) => (p.position as number) ?? 0), 0);
+    const leaders = players.filter((p) => (p.position as number) === bestPos);
+    const bestScore = Math.max(...leaders.map((p) => (p.score as number) ?? 0), 0);
+    winnerUids = leaders.filter((p) => (p.score as number) === bestScore).map((p) => p.uid as string);
+  } else if (s.gameMode === 'battle') {
+    // Battle: last players standing win; among the living, score breaks ties.
+    const alive = players.filter((p) => p.eliminated !== true);
+    const pool = alive.length > 0 ? alive : players;
+    const bestScore = Math.max(...pool.map((p) => (p.score as number) ?? 0), 0);
+    winnerUids = pool.filter((p) => (p.score as number) === bestScore).map((p) => p.uid as string);
   } else {
     const bestScore = Math.max(...players.map((p) => (p.score as number) ?? 0), 0);
     winnerUids = players.filter((p) => (p.score as number) === bestScore).map((p) => p.uid as string);
   }
 
-  // Rank players by score
-  const ranked = [...players].sort((a, b) => (b.score as number) - (a.score as number));
+  // Rank players by mode-appropriate metric.
+  const metric = (p: Record<string, unknown>): number =>
+    s.gameMode === 'race' ? ((p.position as number) ?? 0) * 1e9 + ((p.score as number) ?? 0) : ((p.score as number) ?? 0);
+  const ranked = [...players].sort((a, b) => metric(b) - metric(a));
 
   const batch = db.batch();
   ranked.forEach((p, i) => {
@@ -605,8 +732,6 @@ async function finishSession(sessRef: FirebaseFirestore.DocumentReference, s: Fi
     const uid = p.uid as string;
     const completionXP = GAME_REWARD_CONFIG.gameCompletionXP + (winnerUids.includes(uid) ? GAME_REWARD_CONFIG.winXP : 0);
     const userRef = db.collection('users').doc(uid);
-
-    const newXp = ((p.xpEarned as number) ?? 0) > 0 ? null : null; // placeholder to keep TS happy
 
     await db.runTransaction(async (tx) => {
       const userSnap = await tx.get(userRef);
@@ -668,8 +793,6 @@ async function finishSession(sessRef: FirebaseFirestore.DocumentReference, s: Fi
   }
 
   await sessRef.update({
-    status: 'finished',
-    endedAt: new Date().toISOString(),
     winners: winnerUids,
     settings: { ...settings, joinLocked: true },
   });
@@ -716,11 +839,4 @@ export const leaveGame = onCall(async (request) => {
   if (!sessionId) throw new HttpsError('invalid-argument', 'Missing sessionId.');
   await db.collection('gameSessions').doc(sessionId).collection('players').doc(uid).delete();
   return { ok: true };
-});
-
-// ============================
-// Housekeeping: player presence heartbeat
-// ============================
-export const onPlayerWritten = onDocumentWritten('gameSessions/{sessionId}/players/{uid}', async (event) => {
-  // no-op hook kept for future presence logic (e.g., disconnect detection)
 });

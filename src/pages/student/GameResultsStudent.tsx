@@ -1,9 +1,10 @@
 // Mined — Student game results screen.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Panel, ProgressBar } from '../../components/ui';
 import { Logo } from '../../components/Logo';
-import type { GameSession, PlayerState, Question } from '../../lib/types';
+import type { GameSession, PlayerState } from '../../lib/types';
+import type { PlayQuestion } from '../../lib/gameService';
 import { levelProgress } from '../../lib/scoring';
 import { formatNumber } from '../../lib/format';
 import { useAuth } from '../../auth/AuthContext';
@@ -13,11 +14,15 @@ import { doc, onSnapshot, getFirestore } from 'firebase/firestore';
 export function GameResultsStudent({ session, players, questions }: {
   session: GameSession;
   players: PlayerState[];
-  questions: Question[];
+  questions: PlayQuestion[];
 }) {
   const { user, profile } = useAuth();
   const me = players.find((p) => p.uid === user?.uid);
   const [unlocked, setUnlocked] = useState<string[]>([]);
+  // Track the XP the profile had when results first rendered, so the
+  // "LEVEL UP" banner only shows when this game actually raised the level.
+  const xpAtRender = useRef<number | null>(null);
+  if (profile && xpAtRender.current === null) xpAtRender.current = profile.xp;
 
   useEffect(() => {
     if (!user) return;
@@ -42,8 +47,12 @@ export function GameResultsStudent({ session, players, questions }: {
   const rank = players.findIndex((p) => p.uid === me.uid) + 1;
   const accuracy = me.questionsAnswered > 0 ? Math.round((me.correctAnswers / me.questionsAnswered) * 100) : 0;
   const lp = levelProgress(profile?.xp ?? me.xpEarned);
-  const prevLevel = lp.level - Math.floor((me.xpEarned >= 500 ? 1 : 0));
-  const leveledUp = me.xpEarned >= 500;
+  // Compare against the level the player had when this screen first rendered.
+  // (The Cloud Function already added this game's XP by the time we got here,
+  // so a genuine level-up is "level now > level at first render".)
+  const baseline = xpAtRender.current ?? profile?.xp ?? me.xpEarned;
+  const leveledUp = baseline > 0 && lp.level > levelProgress(baseline - me.xpEarned > 0 ? baseline - me.xpEarned : 0).level;
+  const prevLevel = Math.max(1, lp.level - 1);
 
   return (
     <div className="game-bg" style={{ backgroundImage: 'linear-gradient(160deg,#0b0f1e,#131a38)' }}>

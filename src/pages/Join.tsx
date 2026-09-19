@@ -1,6 +1,6 @@
 // Mined — Join Game: student enters a game code and is placed into the session.
 import { useState, type FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Button, Input } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { joinGameByCode } from '../lib/gameService';
@@ -8,7 +8,9 @@ import { joinGameByCode } from '../lib/gameService';
 export function Join() {
   const nav = useNavigate();
   const { user, profile } = useAuth();
-  const [code, setCode] = useState('');
+  // ?code=XXXX comes back from the login flow (Login honors ?next=/join&code=…).
+  const [sp] = useSearchParams();
+  const [code, setCode] = useState((sp.get('code') ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -17,6 +19,12 @@ export function Join() {
     setError('');
     if (code.trim().length !== 5) {
       setError('Game codes are 5 characters.');
+      return;
+    }
+    if (!user) {
+      // The backend only accepts joins from signed-in users — send them to
+      // login first (keeping the code so they can resume after signing in).
+      nav(`/login?next=/join&code=${code}`);
       return;
     }
     setBusy(true);
@@ -41,7 +49,7 @@ export function Join() {
         <p className="muted" style={{ margin: '0 auto 18px', maxWidth: 340 }}>
           {user
             ? 'Enter the code your teacher is showing.'
-            : 'Enter the game code — you can sign in after to keep your XP.'}
+            : 'Enter the game code — you’ll be asked to sign in first so your XP is saved.'}
         </p>
 
         <form onSubmit={onContinue} style={{ width: '100%' }}>
@@ -61,7 +69,7 @@ export function Join() {
             5 characters — ask your teacher.
           </span>
           <Button type="submit" size="xl" full disabled={busy || code.length !== 5}>
-            {busy ? 'Joining…' : 'Continue'}
+            {busy ? 'Joining…' : user ? 'Continue' : 'Sign in & join'}
           </Button>
           {error && <p className="error-text" role="alert" style={{ textAlign: 'center', marginTop: 12 }}>{error}</p>}
         </form>

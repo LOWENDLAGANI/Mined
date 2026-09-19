@@ -1,15 +1,18 @@
 // Mined — Student live game screen. Renders the game-mode experience on top
 // of the shared question flow. All scoring comes from the Cloud Function.
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+// ANTI-CHEAT: this screen uses sanitized question data (no answer keys) —
+// correctness arrives only via the submitAnswer result or the server-published
+// session.lastReveal after the question window closes.
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, Panel, ProgressBar, Spinner } from '../../components/ui';
 import { Logo } from '../../components/Logo';
 import { useAuth } from '../../auth/AuthContext';
-import { subscribeSession, subscribePlayers, subscribeMyPlayer, getSessionQuestions, submitAnswer, leaveSession } from '../../lib/gameService';
+import { subscribeSession, subscribePlayers, subscribeMyPlayer, getPlayQuestions, submitAnswer, leaveSession } from '../../lib/gameService';
+import type { PlayQuestion } from '../../lib/gameService';
 import { APP_ASSETS } from '../../assets/textures';
-import { avatarUrl } from '../../assets/avatars';
 import { GAME_MODES, TEAM_COLORS, TREASURE_LOCATIONS } from '../../lib/gameModes';
-import type { GameSession, PlayerState, Question } from '../../lib/types';
+import type { GameSession, PlayerState } from '../../lib/types';
 import { formatNumber } from '../../lib/format';
 import { GameResultsStudent } from './GameResultsStudent';
 
@@ -18,13 +21,15 @@ const KEY_COLORS = ['#e17055', '#0984e3', '#00b894', '#fdcb6e'];
 
 export function StudentGame() {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const nav = useNavigate();
   const { user, profile } = useAuth();
   const [session, setSession] = useState<GameSession | null>(null);
   const [players, setPlayers] = useState<PlayerState[]>([]);
   const [me, setMe] = useState<PlayerState | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<PlayQuestion[]>([]);
   const [missing, setMissing] = useState(false);
   const [kicked, setKicked] = useState(false);
+  const hadMe = useRef(false);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -36,27 +41,22 @@ export function StudentGame() {
   useEffect(() => {
     if (!sessionId || !user) return;
     return subscribeMyPlayer(sessionId, user.uid, (p) => {
-      if (!p) {
-        // Only treat as kicked once we had a player doc and session is live/waiting.
-        setMe(null);
-      } else {
+      if (p) {
+        hadMe.current = true;
         setMe(p);
-        setKicked(false);
+      } else {
+        setMe(null);
+        // A missing player doc only means "kicked" if we actually had a doc
+        // before — otherwise it's just the initial snapshot racing the join.
+        if (hadMe.current) setKicked(true);
       }
     });
   }, [sessionId, user]);
 
   useEffect(() => {
     if (!session) return;
-    getSessionQuestions(session.quizId).then(setQuestions).catch(() => setQuestions([]));
-  }, [session?.quizId]);
-
-  useEffect(() => {
-    if (me === null && session) {
-      const t = setTimeout(() => { if (!me) setKicked(true); }, 4000);
-      return () => clearTimeout(t);
-    }
-  }, [me, session]);
+    getPlayQuestions(session.id).then(setQuestions).catch(() => setQuestions([]));
+  }, [session?.id]);
 
   if (missing) {
     return <GameMessage icon="🕳️" text="Game not found." sub="Check the code with your teacher." />;
@@ -92,6 +92,8 @@ export function StudentGame() {
   const q = questions[session.currentQuestionIndex];
   if (!q) return <div className="page-center"><Spinner /></div>;
 
+  const reveal = session.status === 'question_results' ? session.lastReveal ?? null : null;
+
   return (
     <div
       className="game-bg"
@@ -107,7 +109,7 @@ export function StudentGame() {
       <div className="game-topbar">
         <Logo size="sm" />
         <span className="muted" style={{ fontWeight: 700 }}>{mode.icon} {mode.name}</span>
-        <span className="timer-pill">{q && session.status === 'question_active' ? <TimerInline endsAt={session.questionEndsAt} /> : '—'}</span>
+        <span className="timer-pill">{session.status === 'question_active' ? <TimerInline endsAt={session.questionEndsAt} /> : '—'}</span>
       </div>
 
       {me && <ModeHud session={session} me={me} players={players} />}
@@ -119,20 +121,34 @@ export function StudentGame() {
           question={q}
           questionIndex={session.currentQuestionIndex}
           questionCount={session.questionCount}
-          uid={user.uid}
         />
       )}
 
       {session.status === 'question_results' && (
         <Panel className="question-panel">
           <h2>Question {session.currentQuestionIndex + 1} results</h2>
-          <p className="muted">Get ready for the next one…</p>
-          {q.explanation && <p>{q.explanation}</p>}
+          {reveal ? (
+            <>
+              <p style={{ fontWeight: 800 }}>✓ Correct answer: {q.options[reveal.correctOption] ?? '—'}</p>
+              {reveal.explanation && <p className="muted">{reveal.explanation}</p>}
+            </>
+          ) : (
+            <p className="muted">Get ready for the next one…</p>
+          )}
         </Panel>
       )}
 
       <div className="mt-3" style={{ textAlign: 'center' }}>
-        <Button variant="ghost" size="sm" onClick={() => leaveSession(session.id)}>Leave game</Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={async () => {
+            await leaveSession(session.id);
+            nav('/join');
+          }}
+        >
+          Leave game
+        </Button>
       </div>
     </div>
   );
@@ -161,7 +177,6 @@ function WaitingRoom({ session, me }: { session: GameSession; me: PlayerState | 
         <div className="game-code-display mt-1" style={{ fontSize: '2.2rem' }}>{session.gameCode}</div>
         <p className="muted mt-2">{session.quizTitle}</p>
         <div className="spinner-wrap"><Spinner label="Waiting for the game to start" /></div>
-
       </div>
     </div>
   );
@@ -212,27 +227,16 @@ function TimerBar({ endsAt, totalSeconds }: { endsAt: string | null; totalSecond
 
 // ---------- Question + answer flow ----------
 
-function QuestionView({ session, question, questionIndex, questionCount, uid }: {
+function QuestionView({ session, question, questionIndex, questionCount }: {
   session: GameSession;
-  question: Question;
+  question: PlayQuestion;
   questionIndex: number;
   questionCount: number;
-  uid: string;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ correct: boolean; points?: number; xp?: number; streak?: number } | null>(null);
+  const [feedback, setFeedback] = useState<{ correct: boolean; points?: number; xp?: number; streak?: number; correctOption?: number; explanation?: string } | null>(null);
   const answeredRef = useRef(false);
-  const [deadlinePassed, setDeadlinePassed] = useState(false);
-
-  // Reveal correct answer when the question window closes (question_results state arrives via session status).
-  useEffect(() => {
-    if (!session.questionEndsAt) return;
-    const iv = setInterval(() => {
-      if (Date.now() > new Date(session.questionEndsAt!).getTime()) setDeadlinePassed(true);
-    }, 500);
-    return () => clearInterval(iv);
-  }, [session.questionEndsAt]);
 
   async function choose(idx: number) {
     if (answeredRef.current || submitting) return;
@@ -241,7 +245,14 @@ function QuestionView({ session, question, questionIndex, questionCount, uid }: 
     setSubmitting(true);
     try {
       const res = await submitAnswer(session.id, question.id, idx);
-      setFeedback({ correct: !!res.data?.isCorrect, points: res.data?.pointsEarned, xp: res.data?.xpEarned, streak: res.data?.streak });
+      setFeedback({
+        correct: !!res.data?.isCorrect,
+        points: res.data?.pointsEarned,
+        xp: res.data?.xpEarned,
+        streak: res.data?.streak,
+        correctOption: res.data?.reveal?.correctOption,
+        explanation: res.data?.reveal?.explanation,
+      });
     } catch {
       setFeedback({ correct: false });
     } finally {
@@ -249,32 +260,26 @@ function QuestionView({ session, question, questionIndex, questionCount, uid }: 
     }
   }
 
-  const reveal = deadlinePassed || session.status !== 'question_active';
+  const closed = session.status !== 'question_active';
 
   return (
     <>
       <TimerBar endsAt={session.questionEndsAt} totalSeconds={question.timeLimit} />
       <div className="question-panel">
         <div className="muted" style={{ fontWeight: 700 }}>Question {questionIndex + 1} / {questionCount}</div>
-
         <h2 className="question-text">{question.question}</h2>
       </div>
 
       <div className="options-grid">
         {question.options.map((opt, i) => {
-          const isCorrectOption = i === question.correctOption;
           const cls =
             selected === i && feedback
               ? feedback.correct ? 'option-btn correct' : 'option-btn wrong'
-              : reveal && isCorrectOption
+              : feedback && i === feedback.correctOption
               ? 'option-btn correct'
-              : selected === i && !feedback
-              ? 'option-btn'
-              : reveal
-              ? 'option-btn dimmed'
               : 'option-btn';
           return (
-            <button key={i} className={cls} onClick={() => choose(i)} disabled={selected !== null || submitting || reveal}>
+            <button key={i} className={cls} onClick={() => choose(i)} disabled={selected !== null || submitting || closed}>
               <span className="option-key" style={{ background: KEY_COLORS[i] }} aria-hidden="true">{KEYS[i]}</span>
               {opt}
             </button>
@@ -295,8 +300,10 @@ function QuestionView({ session, question, questionIndex, questionCount, uid }: 
               <div className="feedback-detail">+{feedback.xp ?? 0} XP {feedback.streak && feedback.streak > 1 ? <span className="streak-flames">🔥 {feedback.streak}</span> : null}</div>
             </>
           )}
-          {!feedback.correct && <div className="feedback-detail">The correct answer was: <strong>{question.options[question.correctOption]}</strong></div>}
-          {question.explanation && <div className="feedback-detail">{question.explanation}</div>}
+          {feedback.correctOption != null && (
+            <div className="feedback-detail">The correct answer was: <strong>{question.options[feedback.correctOption]}</strong></div>
+          )}
+          {feedback.explanation && <div className="feedback-detail">{feedback.explanation}</div>}
         </div>
       )}
     </>
@@ -311,7 +318,7 @@ function ModeHud({ session, me, players }: { session: GameSession; me: PlayerSta
   if (mode === 'battle') return <BattleHud me={me} players={players} />;
   if (mode === 'boss') return <BossHud session={session} me={me} players={players} />;
   if (mode === 'treasure') return <TreasureHud me={me} />;
-  if (mode === 'survival') return <SurvivalHud me={me} players={players} />;
+  if (mode === 'survival') return <SurvivalHud session={session} me={me} players={players} />;
   if (mode === 'team') return <TeamHud me={me} players={players} />;
   return <ClassicHud me={me} players={players} />;
 }
@@ -348,32 +355,38 @@ function RaceHud({ me, players }: { me: PlayerState; players: PlayerState[] }) {
 }
 
 function BattleHud({ me, players }: { me: PlayerState; players: PlayerState[] }) {
-  const maxHp = 100;
-  const sorted = [...players].slice(0, 6);
+  const maxHp = 3; // PLAYER_DEFAULT_HP — hearts, server keeps the real value
+  const others = players.filter((p) => p.uid !== me.uid && p.eliminated !== true).slice(0, 6);
   return (
     <div className="hud-row">
       <div className="card hud-card">
         <div className="muted">Your HP</div>
-        <ProgressBar value={Math.max(0, (me.lives ?? 0) > 0 ? 1 : 0)} label="HP" color="linear-gradient(90deg,#e17055,#d63031)" />
-        <div className="muted mt-1" style={{ fontSize: '0.8rem' }}>⚔️ ATK {Math.round((me.score / 100) || 0)} · ❤️ {me.lives ?? 0}</div>
+        <div className="lives-display" aria-label={`${me.lives ?? 0} HP remaining`}>
+          {Array.from({ length: Math.max(0, me.lives ?? 0) }).map((_, i) => <span key={i}>❤️</span>)}
+          {Array.from({ length: Math.max(0, maxHp - (me.lives ?? 0)) }).map((_, i) => <span key={`e${i}`}>🖤</span>)}
+        </div>
+        <div className="muted mt-1" style={{ fontSize: '0.8rem' }}>{formatNumber(me.score)} pts</div>
       </div>
-      {sorted.map((p) => (
+      {others.map((p) => (
         <div key={p.uid} className="card hud-card" style={{ minWidth: 140 }}>
           <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{p.displayName}</div>
-          <ProgressBar value={Math.max(0, Math.min(1, (p.lives ?? 0) / 3))} label={`${p.displayName} HP`} color="linear-gradient(90deg,#e17055,#d63031)" />
+          <div className="lives-display" aria-label={`${p.displayName} HP`}>
+            {Array.from({ length: Math.max(0, p.lives ?? 0) }).map((_, i) => <span key={i}>❤️</span>)}
+            {Array.from({ length: Math.max(0, maxHp - (p.lives ?? 0)) }).map((_, i) => <span key={`e${i}`}>🖤</span>)}
+          </div>
           <div className="muted mt-1" style={{ fontSize: '0.8rem' }}>{formatNumber(p.score)} pts</div>
         </div>
       ))}
-      <span className="visually-hidden">{maxHp}</span>
     </div>
   );
 }
 
 function BossHud({ session, me, players }: { session: GameSession; me: PlayerState; players: PlayerState[] }) {
   const maxHp = session.settings.bossHp || 100;
-  const damage = useMemo(() => players.reduce((s, p) => s + (p.score / 100) * 25, 0), [players]);
+  // Server-truth: the class's cumulative damage lives on the session doc.
+  const damage = session.bossDamage ?? 0;
   const hp = Math.max(0, maxHp - damage);
-  const defeated = hp <= 0;
+  const defeated = session.bossDefeated === true || hp <= 0;
   return (
     <div className="boss-wrap">
       <div style={{ position: 'relative', display: 'inline-block' }}>
@@ -384,7 +397,10 @@ function BossHud({ session, me, players }: { session: GameSession; me: PlayerSta
       </div>
       <div style={{ fontWeight: 900, fontSize: '1.1rem', marginTop: 8 }}>{session.settings.bossName ?? 'The Boss'}</div>
       <ProgressBar className="boss-hp-bar" value={hp / maxHp} label="Boss HP" color="linear-gradient(90deg,#d63031,#e17055)" />
-      <div className="muted mt-1">{formatNumber(Math.ceil(hp))} / {formatNumber(maxHp)} HP · your damage: {formatNumber(Math.round((me.score / 100) * 25))}</div>
+      <div className="muted mt-1">
+        {formatNumber(Math.ceil(hp))} / {formatNumber(maxHp)} HP · {players.filter((p) => p.correctAnswers > 0).length} heroes fighting
+        {me.correctAnswers > 0 ? ` · you landed ${me.correctAnswers} hit${me.correctAnswers === 1 ? '' : 's'}` : ''}
+      </div>
     </div>
   );
 }
@@ -406,7 +422,8 @@ function TreasureHud({ me }: { me: PlayerState }) {
   );
 }
 
-function SurvivalHud({ me, players }: { me: PlayerState; players: PlayerState[] }) {
+function SurvivalHud({ session, me, players }: { session: GameSession; me: PlayerState; players: PlayerState[] }) {
+  const startLives = session.settings.startLives ?? 3;
   const alive = players.filter((p) => !p.eliminated).length;
   return (
     <div className="hud-row">
@@ -414,7 +431,7 @@ function SurvivalHud({ me, players }: { me: PlayerState; players: PlayerState[] 
         <div className="muted">Your lives</div>
         <div className="lives-display" aria-label={`${me.lives ?? 0} lives remaining`}>
           {Array.from({ length: Math.max(0, me.lives ?? 0) }).map((_, i) => <span key={i}>❤️</span>)}
-          {Array.from({ length: Math.max(0, 3 - (me.lives ?? 0)) }).map((_, i) => <span key={`e${i}`}>🖤</span>)}
+          {Array.from({ length: Math.max(0, startLives - (me.lives ?? 0)) }).map((_, i) => <span key={`e${i}`}>🖤</span>)}
         </div>
         {(me.lives ?? 0) <= 0 && <div className="error-text mt-1">You’re eliminated 👻</div>}
       </div>

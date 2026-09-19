@@ -83,6 +83,14 @@ export interface GameSession {
   currentQuestionIndex: number;
   questionStartedAt: string | null;
   questionEndsAt: string | null;
+  /** Server-published answer key for the PREVIOUS/closed question. Only set
+   *  once the question window has closed — never during active play. */
+  lastReveal?: { correctOption: number; explanation: string } | null;
+  /** Boss mode: cumulative damage dealt by the class (server-maintained). */
+  bossDamage?: number;
+  bossDefeated?: boolean;
+  /** Set when the session finishes: uids of the winner(s). */
+  winners?: string[];
   createdAt: string;
   startedAt: string | null;
   endedAt: string | null;

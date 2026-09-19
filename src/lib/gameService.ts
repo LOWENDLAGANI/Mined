@@ -59,15 +59,29 @@ export async function findSessionByCode(gameCode: string): Promise<GameSession |
   return snap.empty ? null : ({ ...(snap.docs[0].data() as GameSession), id: snap.docs[0].id });
 }
 
-export function subscribeSession(sessionId: string, cb: (s: GameSession | null) => void): Unsubscribe {
-  return onSnapshot(doc(db, 'gameSessions', sessionId), (snap) =>
-    cb(snap.exists() ? ({ ...(snap.data() as GameSession), id: snap.id }) : null)
+export function subscribeSession(
+  sessionId: string,
+  cb: (s: GameSession | null) => void,
+  onError?: (e: Error) => void
+): Unsubscribe {
+  return onSnapshot(
+    doc(db, 'gameSessions', sessionId),
+    (snap) => cb(snap.exists() ? ({ ...(snap.data() as GameSession), id: snap.id }) : null),
+    (err) => { if (onError) onError(err); }
   );
 }
 
-export function subscribePlayers(sessionId: string, cb: (players: PlayerState[]) => void): Unsubscribe {
+export function subscribePlayers(
+  sessionId: string,
+  cb: (players: PlayerState[]) => void,
+  onError?: (e: Error) => void
+): Unsubscribe {
   const q = query(collection(db, 'gameSessions', sessionId, 'players'), orderBy('score', 'desc'));
-  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data() as PlayerState)));
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.docs.map((d) => d.data() as PlayerState)),
+    (err) => { if (onError) onError(err); }
+  );
 }
 
 export function subscribeMyPlayer(sessionId: string, uid: string, cb: (p: PlayerState | null) => void): Unsubscribe {
@@ -83,13 +97,31 @@ export async function getSessionQuestions(quizId: string): Promise<Question[]> {
   return questions;
 }
 
-/** Student submits an answer via Cloud Function — server computes correctness/score. */
+/** Student submits an answer via Cloud Function — server computes correctness/score.
+ *  The response carries the reveal (correct option + explanation), which is the
+ *  only way the client ever learns the answer key. */
 export async function submitAnswer(sessionId: string, questionId: string, selectedOption: number) {
-  const fn = httpsCallable<{ sessionId: string; questionId: string; selectedOption: number }, { ok: boolean; isCorrect?: boolean; pointsEarned?: number; xpEarned?: number; streak?: number }>(
-    functions,
-    'submitAnswer'
-  );
+  const fn = httpsCallable<
+    { sessionId: string; questionId: string; selectedOption: number },
+    { ok: boolean; isCorrect?: boolean; pointsEarned?: number; xpEarned?: number; streak?: number; reveal?: { correctOption: number; explanation: string } }
+  >(functions, 'submitAnswer');
   return fn({ sessionId, questionId, selectedOption });
+}
+
+/** Sanitized question fetch for players: no correctOption/explanation ever
+ *  reaches the browser, so an inspecting student can't cheat. */
+export async function getPlayQuestions(sessionId: string): Promise<PlayQuestion[]> {
+  const fn = httpsCallable<{ sessionId: string }, { ok: boolean; questions: PlayQuestion[] }>(functions, 'getPlayQuestions');
+  const res = await fn({ sessionId });
+  return res.data.questions;
+}
+
+export interface PlayQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  timeLimit: number;
+  points: number;
 }
 
 export async function leaveSession(sessionId: string) {

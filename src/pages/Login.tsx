@@ -15,14 +15,22 @@ export function Login() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Already signed in? Send to the right home.
+  // Honor ?next=/join&code=XXXX (Join flow) or ?next=/join plain.
+  const nextParam = new URLSearchParams(location.search).get('next');
+  const codeParam = new URLSearchParams(location.search).get('code');
+
+  // Already signed in? Send to the right home (or back to Join).
   useEffect(() => {
     if (user && profile) {
-      const dest = (location.state as { from?: string })?.from ??
+      const dest = nextParam ?? (location.state as { from?: string })?.from ??
         (profile.role === 'teacher' ? '/teacher/dashboard' : '/student');
       nav(dest, { replace: true });
     }
-  }, [user, profile, location.state, nav]);
+  }, [user, profile, location.state, nav, nextParam]);
+
+  function joinDestination(): string {
+    return codeParam ? `/join?code=${codeParam}` : '/join';
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -30,6 +38,7 @@ export function Login() {
     setBusy(true);
     try {
       await login(email.trim(), password);
+      if (nextParam) nav(nextParam === '/join' ? joinDestination() : nextParam, { replace: true });
     } catch (err) {
       const e = err as { code?: string; message?: string };
       setError(friendlyAuthError(e.code ?? '', e.message));
@@ -42,6 +51,7 @@ export function Login() {
     setBusy(true);
     try {
       await loginGoogle();
+      if (nextParam) nav(nextParam === '/join' ? joinDestination() : nextParam, { replace: true });
     } catch (err) {
       const e = err as { code?: string; message?: string };
       setError(friendlyAuthError(e.code ?? '', e.message));

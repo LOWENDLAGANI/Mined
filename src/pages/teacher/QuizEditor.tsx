@@ -1,5 +1,5 @@
 // Mined — Quiz editor: quiz details + question management.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { Button, Card, EmptyState, Input, Modal, Panel, Select } from '../../components/ui';
@@ -11,6 +11,9 @@ import { GAME_MODE_LIST, GAME_MODES } from '../../lib/gameModes';
 import type { GameMode, Question, Quiz } from '../../lib/types';
 
 const EMPTY_Q = { question: '', options: ['', '', '', ''], correctOption: 0, explanation: '', timeLimit: 20, points: 100 };
+const MIN_OPTIONS = 2;
+const MAX_OPTIONS = 4;
+const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 export function QuizEditor() {
   const { quizId } = useParams<{ quizId: string }>();
@@ -31,11 +34,16 @@ export function QuizEditor() {
   const [startOpen, setStartOpen] = useState(sp.get('start') === '1');
 
   // Create or load
+  // Ref guard: React StrictMode mounts effects twice in dev — without this,
+  // two "Untitled Quiz" docs get created for one visit to /teacher/quizzes/new.
+  const creatingRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!profile) return;
       if (!quizId) {
+        if (creatingRef.current) return;
+        creatingRef.current = true;
         const id = await createQuiz(profile.uid, { title: 'Untitled Quiz' });
         if (!cancelled) { nav(`/teacher/quizzes/${id}`, { replace: true }); }
         return;
@@ -64,7 +72,13 @@ export function QuizEditor() {
 
   async function saveQuestion() {
     if (!quizId || !editing) return;
-    const payload = { ...editing, options: editing.options.map((o) => o.trim()) };
+    const options = editing.options.map((o) => o.trim()).filter(Boolean);
+    if (options.length < MIN_OPTIONS) return;
+    // Keep correctOption valid if the trimmed list shrank or the marked option
+    // was removed.
+    let correct = editing.correctOption;
+    if (correct >= options.length) correct = 0;
+    const payload = { ...editing, options, correctOption: correct };
     if (editing.id) await updateQuestion(quizId, editing.id, payload);
     else await addQuestion(quizId, { ...payload, order: (sorted[sorted.length - 1]?.order ?? 0) + 1 });
     setEditing(null);
@@ -136,6 +150,7 @@ export function QuizEditor() {
                   {oi === q.correctOption ? '✓' : '•'} {o || '(blank)'}
                 </span>
               ))}
+              {q.options.length < 2 && <span className="error-text">⚠ A question needs at least 2 options.</span>}
             </div>
             {q.explanation && <p className="muted mt-1" style={{ fontSize: '0.88rem', margin: 0 }}>Explanation: {q.explanation}</p>}
             <div className="row mt-1" style={{ flexWrap: 'wrap' }}>
@@ -175,15 +190,40 @@ export function QuizEditor() {
                     setEditing({ ...editing, options });
                   }}
                 />
+                {editing.options.length > MIN_OPTIONS && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Remove option ${i + 1}`}
+                    onClick={() => {
+                      const options = editing.options.filter((_, j) => j !== i);
+                      let correct = editing.correctOption;
+                      if (correct === i) correct = 0;
+                      else if (correct > i) correct -= 1;
+                      setEditing({ ...editing, options, correctOption: correct });
+                    }}
+                  >
+                    ✕
+                  </Button>
+                )}
               </div>
             ))}
+            {editing.options.length < MAX_OPTIONS && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setEditing({ ...editing, options: [...editing.options, ''] })}
+              >
+                + Add option
+              </Button>
+            )}
             <Input label="Explanation (shown after the question)" name="explanation" value={editing.explanation} onChange={(e) => setEditing({ ...editing, explanation: e.target.value })} />
             <div className="grid grid-2">
-              <Input label="Time limit (seconds)" name="timeLimit" type="number" min={5} max={120} value={editing.timeLimit} onChange={(e) => setEditing({ ...editing, timeLimit: Number(e.target.value) })} />
-              <Input label="Points" name="points" type="number" min={10} max={1000} step={10} value={editing.points} onChange={(e) => setEditing({ ...editing, points: Number(e.target.value) })} />
+              <Input label="Time limit (seconds)" name="timeLimit" type="number" min={5} max={120} value={editing.timeLimit} onChange={(e) => setEditing({ ...editing, timeLimit: clamp(Number(e.target.value) || 5, 5, 120) })} />
+              <Input label="Points" name="points" type="number" min={10} max={1000} step={10} value={editing.points} onChange={(e) => setEditing({ ...editing, points: clamp(Number(e.target.value) || 10, 10, 1000) })} />
             </div>
             <div className="row mt-1">
-              <Button onClick={saveQuestion} disabled={!editing.question.trim() || editing.options.some((o) => !o.trim())}>Save question</Button>
+              <Button onClick={saveQuestion} disabled={!editing.question.trim() || editing.options.map((o) => o.trim()).filter(Boolean).length < MIN_OPTIONS}>Save question</Button>
               <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
             </div>
           </>
@@ -191,25 +231,42 @@ export function QuizEditor() {
       </Modal>
 
       {/* Start-game mode picker */}
-      <StartGameModal open={startOpen} onClose={() => { setStartOpen(false); setSp({}, { replace: true }); }} quizId={quizId!} published={published} questionCount={sorted.length} />
+      <StartGameModal
+        open={startOpen}
+        onClose={() => { setStartOpen(false); setSp({}, { replace: true }); }}
+        quizId={quizId!}
+        published={published}
+        questionCount={sorted.filter((q) => q.options.length >= 2).length}
+        hasInvalidQuestions={sorted.some((q) => q.options.length < 2)}
+      />
     </div>
   );
 }
 
-export function StartGameModal({ open, onClose, quizId, published, questionCount }: { open: boolean; onClose: () => void; quizId: string; published: boolean; questionCount: number }) {
+export function StartGameModal({ open, onClose, quizId, published, questionCount, hasInvalidQuestions }: { open: boolean; onClose: () => void; quizId: string; published: boolean; questionCount: number; hasInvalidQuestions?: boolean }) {
   const [mode, setMode] = useState<GameMode>('classic');
+  const [starting, setStarting] = useState(false);
   const nav = useNavigate();
 
   async function start() {
-    const { createGameSession } = await import('../../lib/gameService');
-    const { sessionId } = await createGameSession(quizId, mode);
-    onClose();
-    nav(`/teacher/games/${sessionId}`);
+    // Busy-guard: a double-click used to create two sessions and the teacher
+    // ended up hosting a different one than the code students joined.
+    if (starting) return;
+    setStarting(true);
+    try {
+      const { createGameSession } = await import('../../lib/gameService');
+      const { sessionId } = await createGameSession(quizId, mode);
+      onClose();
+      nav(`/teacher/games/${sessionId}`);
+    } finally {
+      setStarting(false);
+    }
   }
 
   return (
     <Modal open={open} onClose={onClose} title="Choose a game mode" wide>
       {!published && <p className="error-text">⚠ Publish this quiz first so students can join.</p>}
+      {hasInvalidQuestions && <p className="error-text">⚠ Every question needs at least 2 non-empty options before you can host a game.</p>}
       {questionCount === 0 && <p className="error-text">⚠ Add at least one question before starting a game.</p>}
       <div className="grid grid-auto">
         {GAME_MODE_LIST.map((m) => (
@@ -225,7 +282,9 @@ export function StartGameModal({ open, onClose, quizId, published, questionCount
       </div>
       <p className="muted mt-2">{GAME_MODES[mode].description}</p>
       <div className="row mt-1">
-        <Button size="lg" variant="success" onClick={start} disabled={!published || questionCount === 0}>Start {GAME_MODES[mode].name} game</Button>
+        <Button size="lg" variant="success" onClick={start} disabled={!published || questionCount === 0 || starting}>
+          {starting ? 'Creating game…' : `Start ${GAME_MODES[mode].name} game`}
+        </Button>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
       </div>
     </Modal>

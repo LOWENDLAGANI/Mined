@@ -124,7 +124,11 @@ export async function deleteQuestion(quizId: string, questionId: string) {
 }
 
 export async function duplicateQuestion(quizId: string, question: Question) {
-  return addQuestion(quizId, { ...question, id: undefined, question: `${question.question} (copy)` });
+  // Strip `order` so the duplicate goes to the end of the quiz — reusing the
+  // source's order caused ties (and duplicate-question flash during edits).
+  const { id, order, ...rest } = question;
+  void id; void order;
+  return addQuestion(quizId, rest);
 }
 
 export async function reorderQuestion(quizId: string, questionId: string, newOrder: number) {
