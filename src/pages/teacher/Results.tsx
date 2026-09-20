@@ -5,13 +5,13 @@ import { useAuth } from '../../auth/AuthContext';
 import { Button, Card, EmptyState } from '../../components/ui';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { modeIcon, modeLabel, timeAgo } from '../../lib/format';
+import { timeAgo } from '../../lib/format';
 
 interface SessionSummary {
   id: string;
   quizTitle: string;
-  gameMode: string;
-  gameCode: string;
+  pin?: string;
+  gameCode?: string;
   createdAt: string;
   endedAt: string | null;
   status: string;
@@ -38,18 +38,18 @@ export function TeacherResults() {
   return (
     <div>
       <h1>Results</h1>
-      <p className="muted">Finished games with class analytics.</p>
+      <p className="muted">Finished sessions with class analytics.</p>
       {loading ? <p className="muted mt-2">Loading…</p>
-      : sessions.length === 0 ? <EmptyState icon="🏆" title="No finished games yet" hint="Host and finish a game to see results here." />
+      : sessions.length === 0 ? <EmptyState icon="📊" title="No finished sessions yet" hint="Host and finish a live quiz to see results here." />
       : (
         <div className="grid grid-auto mt-2">
           {sessions.map((s) => (
             <Card key={s.id}>
               <div className="row-between">
                 <h3 style={{ margin: 0 }}>{s.quizTitle}</h3>
-                <span className="badge">Code: {s.gameCode}</span>
+                <span className="badge">PIN: {s.pin ?? s.gameCode}</span>
               </div>
-              <p className="muted mt-1" style={{ margin: '8px 0' }}>{modeIcon(s.gameMode)} {modeLabel(s.gameMode)} · ended {s.endedAt ? timeAgo(s.endedAt) : timeAgo(s.createdAt)}</p>
+              <p className="muted mt-1" style={{ margin: '8px 0' }}>Ended {s.endedAt ? timeAgo(s.endedAt) : timeAgo(s.createdAt)}</p>
               <Link to={`/teacher/results/${s.id}`}><Button size="sm">View analytics</Button></Link>
             </Card>
           ))}

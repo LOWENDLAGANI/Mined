@@ -34,30 +34,12 @@ export function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-export function modeLabel(mode: string): string {
-  const labels: Record<string, string> = {
-    classic: 'Classic',
-    race: 'Race',
-    battle: 'Battle',
-    boss: 'Boss Battle',
-    treasure: 'Treasure Hunt',
-    survival: 'Survival',
-    team: 'Team Battle',
-  };
-  return labels[mode] ?? mode;
+export function pacingLabel(pacing: string): string {
+  return pacing === 'self_paced' ? 'Self-paced' : 'Classic';
 }
 
-export function modeIcon(mode: string): string {
-  const icons: Record<string, string> = {
-    classic: '🎯',
-    race: '🏁',
-    battle: '⚔️',
-    boss: '🐉',
-    treasure: '🗺️',
-    survival: '💀',
-    team: '🤝',
-  };
-  return icons[mode] ?? '🎮';
+export function pacingIcon(pacing: string): string {
+  return pacing === 'self_paced' ? '🚶' : '📺';
 }
 
 /** Map Firebase errors to friendly messages (spec §40). */
@@ -88,7 +70,7 @@ export function friendlyAuthError(code: string, message?: string): string {
 export function friendlyFirestoreError(code: string): string {
   const map: Record<string, string> = {
     'permission-denied': 'You don’t have permission to do that.',
-    'unavailable': 'Can’t reach the game servers. Check your connection.',
+    'unavailable': 'Can’t reach the servers. Check your connection.',
     'not-found': 'That content could not be found.',
     'already-exists': 'That already exists.',
     'failed-precondition': 'That action isn’t available right now.',
@@ -97,10 +79,10 @@ export function friendlyFirestoreError(code: string): string {
   return map[code] ?? 'Something went wrong. Please try again.';
 }
 
-export const GAME_ERRORS = {
-  notFound: 'Game not found.',
-  alreadyStarted: 'This game has already started.',
-  ended: 'This game has ended.',
+export const QUIZ_ERRORS = {
+  notFound: 'Quiz not found.',
+  alreadyStarted: 'This quiz has already started.',
+  ended: 'This quiz has ended.',
   joinLocked: 'The teacher has locked joining.',
-  kicked: 'The teacher removed you from the game.',
+  kicked: 'The teacher removed you from the quiz.',
 } as const;

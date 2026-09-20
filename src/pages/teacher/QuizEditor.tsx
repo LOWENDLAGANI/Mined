@@ -3,17 +3,32 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { Button, Card, EmptyState, Input, Modal, Panel, Select } from '../../components/ui';
+import { ErrorBanner, describeError } from '../../components/ErrorBanner';
 import {
   createQuiz, getQuiz, updateQuiz, subscribeQuestions,
   addQuestion, updateQuestion, deleteQuestion, duplicateQuestion, reorderQuestion,
 } from '../../lib/firestore';
-import { GAME_MODE_LIST, GAME_MODES } from '../../lib/gameModes';
-import type { GameMode, Question, Quiz } from '../../lib/types';
+import type { Pacing, Question, Quiz } from '../../lib/types';
 
 const EMPTY_Q = { question: '', options: ['', '', '', ''], correctOption: 0, explanation: '', timeLimit: 20, points: 100 };
 const MIN_OPTIONS = 2;
 const MAX_OPTIONS = 4;
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+
+const PACING_OPTIONS: Array<{ id: Pacing; name: string; icon: string; blurb: string }> = [
+  {
+    id: 'classic',
+    name: 'Classic',
+    icon: '📺',
+    blurb: 'You control the pace. One question at a time on the big screen, everyone answers together.',
+  },
+  {
+    id: 'self_paced',
+    name: 'Self-paced',
+    icon: '🚶',
+    blurb: 'Each student moves through the questions at their own speed with their own timer.',
+  },
+];
 
 export function QuizEditor() {
   const { quizId } = useParams<{ quizId: string }>();
@@ -29,9 +44,11 @@ export function QuizEditor() {
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
   const [published, setPublished] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<{ technical: string; hint: string } | null>(null);
   const [saved, setSaved] = useState(false);
   const [editing, setEditing] = useState<typeof EMPTY_Q & { id?: string } | null>(null);
   const [startOpen, setStartOpen] = useState(sp.get('start') === '1');
+  const [actionError, setActionError] = useState<{ technical: string; hint: string } | null>(null);
 
   // Create or load
   // Ref guard: React StrictMode mounts effects twice in dev — without this,
@@ -53,7 +70,14 @@ export function QuizEditor() {
       if (!q || q.ownerId !== profile.uid) { nav('/teacher/quizzes', { replace: true }); return; }
       setQuiz(q); setTitle(q.title); setDescription(q.description); setSubject(q.subject);
       setDifficulty(q.difficulty); setPublished(q.published); setLoading(false);
-    })();
+    })().catch((e) => {
+      // Was an unhandled rejection — a failed quiz load used to hang on
+      // "Loading quiz…" forever. Now it shows the loud banner.
+      if (!cancelled) {
+        setLoadError(describeError(e, 'getQuiz'));
+        setLoading(false);
+      }
+    });
     return () => { cancelled = true; };
   }, [quizId, profile, nav]);
 
@@ -64,13 +88,26 @@ export function QuizEditor() {
 
   const sorted = useMemo(() => [...questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)), [questions]);
 
-  async function saveDetails() {
-    if (!quizId) return;
-    await updateQuiz(quizId, { title, description, subject, difficulty, published });
-    setSaved(true); setTimeout(() => setSaved(false), 2000);
+  // Every write action reports failures loudly so the teacher never loses
+  // work silently — the modal/inputs keep their state on error.
+  async function runAction(fn: () => Promise<unknown>) {
+    setActionError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setActionError(describeError(e, 'quiz editor action'));
+    }
   }
 
-  async function saveQuestion() {
+  function saveDetails() {
+    if (!quizId) return;
+    runAction(async () => {
+      await updateQuiz(quizId, { title, description, subject, difficulty, published });
+      setSaved(true); setTimeout(() => setSaved(false), 2000);
+    });
+  }
+
+  function saveQuestion() {
     if (!quizId || !editing) return;
     const options = editing.options.map((o) => o.trim()).filter(Boolean);
     if (options.length < MIN_OPTIONS) return;
@@ -79,30 +116,57 @@ export function QuizEditor() {
     let correct = editing.correctOption;
     if (correct >= options.length) correct = 0;
     const payload = { ...editing, options, correctOption: correct };
-    if (editing.id) await updateQuestion(quizId, editing.id, payload);
-    else await addQuestion(quizId, { ...payload, order: (sorted[sorted.length - 1]?.order ?? 0) + 1 });
-    setEditing(null);
+    runAction(async () => {
+      if (editing.id) await updateQuestion(quizId, editing.id, payload);
+      else await addQuestion(quizId, { ...payload, order: (sorted[sorted.length - 1]?.order ?? 0) + 1 });
+      setEditing(null);
+    });
   }
 
-  async function move(q: Question, dir: -1 | 1) {
+  function move(q: Question, dir: -1 | 1) {
     if (!quizId) return;
     const idx = sorted.findIndex((x) => x.id === q.id);
     const swapWith = sorted[idx + dir];
     if (!swapWith) return;
-    await reorderQuestion(quizId, q.id, swapWith.order);
-    await reorderQuestion(quizId, swapWith.id, q.order);
+    runAction(async () => {
+      await reorderQuestion(quizId, q.id, swapWith.order);
+      await reorderQuestion(quizId, swapWith.id, q.order);
+    });
   }
 
+  if (loadError) {
+    return (
+      <div style={{ maxWidth: 640, margin: '40px auto' }}>
+        <ErrorBanner
+          title="Couldn't open this quiz"
+          message="The quiz didn't load, so your changes can't be saved anywhere yet. Nothing was lost."
+          technical={loadError.technical}
+          hint={loadError.hint}
+          onRetry={() => window.location.reload()}
+          retryLabel="Reload"
+        />
+      </div>
+    );
+  }
   if (loading || !quiz) return <p className="muted">Loading quiz…</p>;
 
   return (
     <div style={{ maxWidth: 860 }}>
+      {actionError && (
+        <ErrorBanner
+          title="Your change wasn't saved"
+          message="The last edit failed to save. Your text is still in the editor — try again, or copy it somewhere safe."
+          technical={actionError.technical}
+          hint={actionError.hint}
+          onDismiss={() => setActionError(null)}
+        />
+      )}
       <div className="row-between mb-2">
         <div>
           <Link to="/teacher/quizzes" className="muted" style={{ fontSize: '0.85rem' }}>← My Quizzes</Link>
           <h1 style={{ margin: '6px 0 0' }}>{title || 'Untitled Quiz'}</h1>
         </div>
-        <Button size="lg" variant="success" onClick={() => setStartOpen(true)}>Host game</Button>
+        <Button size="lg" variant="success" onClick={() => setStartOpen(true)}>Start live quiz</Button>
       </div>
 
       <Panel>
@@ -119,10 +183,13 @@ export function QuizEditor() {
         </div>
         <div className="row">
           <Button onClick={saveDetails}>Save details</Button>
-          <Button variant="secondary" onClick={() => updateQuiz(quizId!, { published: !published }).then(() => setPublished(!published))}>
+          <Button variant="secondary" onClick={() => runAction(async () => {
+            await updateQuiz(quizId!, { published: !published });
+            setPublished(!published);
+          })}>
             {published ? 'Unpublish' : 'Publish quiz'}
           </Button>
-          {published && <span className="ok-text">Students can join games with this quiz.</span>}
+          {published && <span className="ok-text">Students can join live quizzes with this quiz.</span>}
           {saved && <span className="ok-text">Saved ✓</span>}
         </div>
         <p className="muted mt-1" style={{ fontSize: '0.85rem' }}>
@@ -136,7 +203,7 @@ export function QuizEditor() {
       </div>
 
       {sorted.length === 0 ? (
-        <EmptyState icon="❓" title="No questions yet" hint="Add at least one question to run a game." />
+        <EmptyState icon="❓" title="No questions yet" hint="Add at least one question to run a live quiz." />
       ) : (
         sorted.map((q, i) => (
           <Card key={q.id} className="question-card">
@@ -155,10 +222,10 @@ export function QuizEditor() {
             {q.explanation && <p className="muted mt-1" style={{ fontSize: '0.88rem', margin: 0 }}>Explanation: {q.explanation}</p>}
             <div className="row mt-1" style={{ flexWrap: 'wrap' }}>
               <Button size="sm" onClick={() => setEditing({ id: q.id, question: q.question, options: [...q.options], correctOption: q.correctOption, explanation: q.explanation ?? '', timeLimit: q.timeLimit, points: q.points })}>Edit</Button>
-              <Button size="sm" variant="secondary" onClick={() => duplicateQuestion(quizId!, q)}>Duplicate</Button>
+              <Button size="sm" variant="secondary" onClick={() => runAction(() => duplicateQuestion(quizId!, q))}>Duplicate</Button>
               <Button size="sm" variant="secondary" onClick={() => move(q, -1)} disabled={i === 0} aria-label="Move up">↑</Button>
               <Button size="sm" variant="secondary" onClick={() => move(q, 1)} disabled={i === sorted.length - 1} aria-label="Move down">↓</Button>
-              <Button size="sm" variant="danger" onClick={() => deleteQuestion(quizId!, q.id)}>Delete</Button>
+              <Button size="sm" variant="danger" onClick={() => runAction(() => deleteQuestion(quizId!, q.id))}>Delete</Button>
             </div>
           </Card>
         ))
@@ -230,8 +297,8 @@ export function QuizEditor() {
         )}
       </Modal>
 
-      {/* Start-game mode picker */}
-      <StartGameModal
+      {/* Start-quiz pacing picker */}
+      <StartQuizModal
         open={startOpen}
         onClose={() => { setStartOpen(false); setSp({}, { replace: true }); }}
         quizId={quizId!}
@@ -243,47 +310,68 @@ export function QuizEditor() {
   );
 }
 
-export function StartGameModal({ open, onClose, quizId, published, questionCount, hasInvalidQuestions }: { open: boolean; onClose: () => void; quizId: string; published: boolean; questionCount: number; hasInvalidQuestions?: boolean }) {
-  const [mode, setMode] = useState<GameMode>('classic');
+export function StartQuizModal({ open, onClose, quizId, published, questionCount, hasInvalidQuestions }: { open: boolean; onClose: () => void; quizId: string; published: boolean; questionCount: number; hasInvalidQuestions?: boolean }) {
+  const [pacing, setPacing] = useState<Pacing>('classic');
   const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<{ technical: string; hint: string } | null>(null);
   const nav = useNavigate();
 
   async function start() {
     // Busy-guard: a double-click used to create two sessions and the teacher
-    // ended up hosting a different one than the code students joined.
+    // ended up hosting a different one than the PIN students joined.
     if (starting) return;
     setStarting(true);
+    setStartError(null);
     try {
       const { createGameSession } = await import('../../lib/gameService');
-      const { sessionId } = await createGameSession(quizId, mode);
+      const { sessionId } = await createGameSession(quizId, pacing);
       onClose();
-      nav(`/teacher/games/${sessionId}`);
-    } finally {
+      nav(`/teacher/sessions/${sessionId}`);
+    } catch (e) {
+      // Previously an unhandled rejection: the modal stayed open with no
+      // feedback and the teacher couldn't tell if a session was created.
+      setStartError(describeError(e, 'createQuizSession'));
       setStarting(false);
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Choose a game mode" wide>
+    <Modal open={open} onClose={onClose} title="How should this quiz run?" wide>
+      {startError && (
+        <ErrorBanner
+          title="Couldn't start the quiz"
+          message="No session was created. You can try again — nothing is duplicated."
+          technical={startError.technical}
+          hint={startError.hint}
+          onDismiss={() => setStartError(null)}
+        />
+      )}
       {!published && <p className="error-text">⚠ Publish this quiz first so students can join.</p>}
-      {hasInvalidQuestions && <p className="error-text">⚠ Every question needs at least 2 non-empty options before you can host a game.</p>}
-      {questionCount === 0 && <p className="error-text">⚠ Add at least one question before starting a game.</p>}
-      <div className="grid grid-auto">
-        {GAME_MODE_LIST.map((m) => (
-          <Card key={m.id} className={`mode-card ${mode === m.id ? 'card-clickable' : ''}`} onClick={() => setMode(m.id)}
-           >
+      {hasInvalidQuestions && <p className="error-text">⚠ Every question needs at least 2 non-empty options before you can host a live quiz.</p>}
+      {questionCount === 0 && <p className="error-text">⚠ Add at least one question before starting.</p>}
+      <div className="grid grid-2">
+        {PACING_OPTIONS.map((p) => (
+          <Card
+            key={p.id}
+            className={`mode-card ${pacing === p.id ? 'card-clickable' : ''}`}
+            onClick={() => setPacing(p.id)}
+          >
             <div style={{ borderRadius: 12, padding: 8 }}>
-              <div className="mode-icon" aria-hidden="true">{m.icon}</div>
-              <div className="mode-name">{m.name}</div>
-              <div className="mode-tagline">{m.tagline}</div>
+              <div className="mode-icon" aria-hidden="true">{p.icon}</div>
+              <div className="mode-name">{p.name}</div>
+              <div className="mode-tagline">{p.blurb}</div>
             </div>
           </Card>
         ))}
       </div>
-      <p className="muted mt-2">{GAME_MODES[mode].description}</p>
+      <p className="muted mt-2">
+        {pacing === 'classic'
+          ? 'You advance each question from this screen; students see one shared timer.'
+          : 'Students get their own timer per question and move at their own speed; you watch their progress live.'}
+      </p>
       <div className="row mt-1">
         <Button size="lg" variant="success" onClick={start} disabled={!published || questionCount === 0 || starting}>
-          {starting ? 'Creating game…' : `Start ${GAME_MODES[mode].name} game`}
+          {starting ? 'Creating session…' : `Start ${pacing === 'classic' ? 'Classic' : 'Self-paced'} quiz`}
         </Button>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
       </div>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { Button, Card, EmptyState, Modal } from '../../components/ui';
+import { ErrorBanner, describeError } from '../../components/ErrorBanner';
 import { subscribeTeacherQuizzes, duplicateQuiz, deleteQuiz, updateQuiz } from '../../lib/firestore';
 import type { Quiz } from '../../lib/types';
 import { timeAgo } from '../../lib/format';
@@ -13,6 +14,19 @@ export function TeacherQuizzes() {
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<Quiz | null>(null);
   const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<{ technical: string; hint: string } | null>(null);
+
+  async function runAction(fn: () => Promise<unknown>) {
+    setActionError(null);
+    setBusy(true);
+    try {
+      await fn();
+    } catch (e) {
+      setActionError(describeError(e, 'quiz list action'));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!profile) return;
@@ -29,10 +43,20 @@ export function TeacherQuizzes() {
         <Link to="/teacher/quizzes/new"><Button>Create quiz</Button></Link>
       </div>
 
+      {actionError && (
+        <ErrorBanner
+          title="The action didn't complete"
+          message="Duplicate / publish / delete failed. Your quizzes are unchanged — try again."
+          technical={actionError.technical}
+          hint={actionError.hint}
+          onDismiss={() => setActionError(null)}
+        />
+      )}
+
       {loading ? (
         <p className="muted">Loading quizzes…</p>
       ) : quizzes.length === 0 ? (
-        <EmptyState icon="📚" title="No quizzes yet" hint="Create your first quiz — it can be played in all 7 game modes." />
+        <EmptyState icon="📚" title="No quizzes yet" hint="Create your first quiz to run it live with a PIN." />
       ) : (
         <div className="grid grid-auto">
           {quizzes.map((q) => (
@@ -49,8 +73,8 @@ export function TeacherQuizzes() {
               <div className="row mt-1" style={{ flexWrap: 'wrap' }}>
                 <Link to={`/teacher/quizzes/${q.id}`}><Button size="sm">Edit</Button></Link>
                 <Link to={`/teacher/quizzes/${q.id}?start=1`}><Button size="sm" variant="success">Host</Button></Link>
-                <Button size="sm" variant="secondary" disabled={busy} onClick={async () => { setBusy(true); await duplicateQuiz(q); setBusy(false); }}>Duplicate</Button>
-                <Button size="sm" variant="secondary" onClick={() => updateQuiz(q.id, { published: !q.published })}>
+                <Button size="sm" variant="secondary" disabled={busy} onClick={() => runAction(() => duplicateQuiz(q))}>Duplicate</Button>
+                <Button size="sm" variant="secondary" disabled={busy} onClick={() => runAction(() => updateQuiz(q.id, { published: !q.published }))}>
                   {q.published ? 'Unpublish' : 'Publish'}
                 </Button>
                 <Button size="sm" variant="danger" onClick={() => setConfirmDelete(q)}>Delete</Button>
@@ -63,7 +87,7 @@ export function TeacherQuizzes() {
       <Modal open={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Delete quiz?">
         <p>“{confirmDelete?.title}” and all its questions will be permanently deleted.</p>
         <div className="row">
-          <Button variant="danger" onClick={async () => { if (confirmDelete) { await deleteQuiz(confirmDelete.id); setConfirmDelete(null); } }}>Delete permanently</Button>
+          <Button variant="danger" onClick={async () => { if (confirmDelete) { await runAction(() => deleteQuiz(confirmDelete.id)); setConfirmDelete(null); } }}>Delete permanently</Button>
           <Button variant="ghost" onClick={() => setConfirmDelete(null)}>Cancel</Button>
         </div>
       </Modal>

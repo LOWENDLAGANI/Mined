@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './auth/AuthContext';
 import { RequireAuth, RequireRole } from './auth/RequireAuth';
 import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
+import { ErrorBoundary } from './components/ErrorBanner';
 
 import { RoleSelect } from './pages/RoleSelect';
 import { Register } from './pages/Register';
@@ -19,18 +20,16 @@ import { Join } from './pages/Join';
 import { TeacherDashboard } from './pages/teacher/Dashboard';
 import { TeacherQuizzes } from './pages/teacher/Quizzes';
 import { QuizEditor } from './pages/teacher/QuizEditor';
-import { TeacherGames } from './pages/teacher/Games';
-import { GameLobby } from './pages/teacher/GameLobby';
+import { TeacherSessions } from './pages/teacher/Games';
+import { LiveQuiz } from './pages/teacher/LiveQuiz';
 import { TeacherResults } from './pages/teacher/Results';
 import { GameResultsTeacher } from './pages/teacher/GameResultsTeacher';
 import { TeacherProfile } from './pages/teacher/TeacherProfile';
 
 import { StudentHome } from './pages/student/Home';
 import { StudentProgress } from './pages/student/Progress';
-import { StudentAchievements } from './pages/student/Achievements';
-import { StudentLeaderboard } from './pages/student/Leaderboard';
 import { StudentProfile } from './pages/student/StudentProfile';
-import { StudentGame } from './pages/student/StudentGame';
+import { Play } from './pages/student/Play';
 
 import { Settings } from './pages/Settings';
 import { NotFound } from './pages/NotFound';
@@ -58,9 +57,10 @@ function SettingsRedirect() {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
           {/* Public — signed-in users land on their role home, others register */}
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/register" element={<RoleSelect />} />
@@ -78,8 +78,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 <Route path="quizzes" element={<TeacherQuizzes />} />
                 <Route path="quizzes/new" element={<QuizEditor />} />
                 <Route path="quizzes/:quizId" element={<QuizEditor />} />
-                <Route path="games" element={<TeacherGames />} />
-                <Route path="games/:sessionId" element={<GameLobby />} />
+                <Route path="sessions" element={<TeacherSessions />} />
+                <Route path="sessions/:sessionId" element={<LiveQuiz />} />
                 <Route path="results" element={<TeacherResults />} />
                 <Route path="results/:sessionId" element={<GameResultsTeacher />} />
                 <Route path="profile" element={<TeacherProfile />} />
@@ -91,8 +91,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route path="/student" element={<Layout />}>
                 <Route index element={<StudentHome />} />
                 <Route path="progress" element={<StudentProgress />} />
-                <Route path="achievements" element={<StudentAchievements />} />
-                <Route path="leaderboard" element={<StudentLeaderboard />} />
                 <Route path="profile" element={<StudentProfile />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
@@ -102,13 +100,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/settings" element={<SettingsRedirect />} />
           </Route>
 
-          {/* Live gameplay (outside shell, own full-screen layout) */}
-          <Route path="/game/:sessionId" element={<StudentGame />} />
+          {/* Live quiz play (outside shell, own full-screen layout) */}
+          <Route path="/play/:sessionId" element={<Play />} />
 
           <Route path="/404" element={<NotFound />} />
           <Route path="*" element={<Navigate to="/404" replace />} />
         </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 );

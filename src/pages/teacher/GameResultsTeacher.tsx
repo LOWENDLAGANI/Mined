@@ -2,10 +2,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Card, EmptyState, Panel, Stat } from '../../components/ui';
+import { ErrorBanner, describeError } from '../../components/ErrorBanner';
 import { subscribeSession, subscribeSessionLeaderboard, getSessionAnswers } from '../../lib/gameService';
 import type { AnswerDoc, GameSession, PlayerState, Question } from '../../lib/types';
 import { subscribeQuestions } from '../../lib/firestore';
-import { formatNumber, modeIcon, modeLabel } from '../../lib/format';
+import { formatNumber } from '../../lib/format';
 import { avatarUrl } from '../../assets/avatars';
 
 export function GameResultsTeacher() {
@@ -15,6 +16,8 @@ export function GameResultsTeacher() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<AnswerDoc[]>([]);
   const [loading, setLoading] = useState(true);
+  const [answersError, setAnswersError] = useState<{ technical: string; hint: string } | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -29,9 +32,15 @@ export function GameResultsTeacher() {
       setQuestions(qs);
       setLoading(false);
     });
-    getSessionAnswers(session.id).then(setAnswers).catch(() => {});
+    setAnswersError(null);
+    getSessionAnswers(session.id)
+      .then(setAnswers)
+      .catch((e) => {
+        // Was silent — analytics showed 0% everywhere with no explanation.
+        setAnswersError(describeError(e, 'getSessionAnswers'));
+      });
     return un;
-  }, [session]);
+  }, [session, reloadTick]);
 
   const stats = useMemo(() => {
     if (questions.length === 0) return null;
@@ -66,7 +75,17 @@ export function GameResultsTeacher() {
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <Link to="/teacher/results" className="muted" style={{ fontSize: '0.85rem' }}>← Results</Link>
       <h1 className="mt-1">{session.quizTitle}</h1>
-      <p className="muted">{modeIcon(session.gameMode)} {modeLabel(session.gameMode)} · code {session.gameCode} · {players.length} players</p>
+      <p className="muted">PIN {session.pin} · {players.length} players</p>
+
+      {answersError && (
+        <ErrorBanner
+          title="Couldn't load answer data"
+          message="Rankings below are accurate, but per-question analytics are incomplete. Try reloading."
+          technical={answersError.technical}
+          hint={answersError.hint}
+          onRetry={() => setReloadTick((t) => t + 1)}
+        />
+      )}
 
       {players.length === 0 ? (
         <EmptyState icon="📭" title="No player data" />
@@ -86,7 +105,7 @@ export function GameResultsTeacher() {
                 <img src={p.photoURL ?? avatarUrl(p.avatarId)} alt="" style={{ width: 32, height: 32, borderRadius: '50%' }} />
                 <span className="rank-name">{p.displayName}</span>
                 <span className="muted" style={{ fontSize: '0.85rem' }}>{p.correctAnswers}/{p.questionsAnswered} correct</span>
-                <span className="rank-score">{formatNumber(p.score)} pts · +{p.xpEarned} XP</span>
+                <span className="rank-score">{formatNumber(p.score)} pts</span>
               </div>
             ))}
           </Panel>

@@ -5,19 +5,14 @@
 //
 //   texture_background.png      ← every page background
 //   texture_panel.png           ← dashboard panels
-//   texture_card.png            ← quiz / mode / info cards
+//   texture_card.png            ← quiz / info cards
 //   texture_button.png          ← primary buttons (gradient looks better)
 //   texture_header.png          ← top navigation bar
-//   texture_game_background.png ← live gameplay screens
-//   texture_race_track.png      ← Race mode track
-//   texture_boss_arena.png      ← Battle / Boss Battle arena
-//   texture_treasure_map.png    ← Treasure Hunt map
+//   texture_play_background.png ← live quiz screens (or use public/assets/)
 //   texture_modal.png           ← popup dialogs
 //
 // png / jpg / jpeg / webp all work. Restart `npm run dev` after adding.
 // Delete the file (or rename it) to fall back to the built-in placeholder.
-//
-// Developers can also override slots in code below (the file map wins).
 // ───────────────────────────────────────────────────────────────────────────
 
 export interface TextureSlot {
@@ -51,20 +46,8 @@ const PLACEHOLDERS: Record<string, TextureSlot> = {
     value: 'linear-gradient(180deg, #fdfcf8, #f8f5ec)',
     kind: 'css',
   },
-  texture_game_background: {
-    value: 'linear-gradient(180deg, #f4f1e8 0%, #e9e4d4 100%)',
-    kind: 'css',
-  },
-  texture_race_track: {
-    value: 'linear-gradient(180deg, #fbf9f2 0%, #f1ecdd 100%)',
-    kind: 'css',
-  },
-  texture_boss_arena: {
-    value: 'linear-gradient(180deg, #f6efe2 0%, #eadfca 100%)',
-    kind: 'css',
-  },
-  texture_treasure_map: {
-    value: 'linear-gradient(180deg, #f0ecdc 0%, #e4deca 100%)',
+  texture_play_background: {
+    value: 'linear-gradient(180deg, #131a38 0%, #0b0f1e 100%)',
     kind: 'css',
   },
   texture_modal: {
@@ -100,22 +83,3 @@ export const APP_ASSETS: Record<string, TextureSlot> = {
   ...PLACEHOLDERS,
   ...USER_FILES,
 };
-
-// Boss art per difficulty. Replace with real images (kind: 'image', fit: 'contain').
-export interface BossArt {
-  name: string;
-  emoji: string;
-  color: string;
-}
-
-export const BOSS_ART: BossArt[] = [
-  { name: 'Professor Gneiss', emoji: '🧙', color: '#256d54' },
-  { name: 'Countess Carbide', emoji: '🦇', color: '#c05b2e' },
-  { name: 'The Kraken of Calculus', emoji: '🐙', color: '#34618f' },
-  { name: 'Magma Wyrm', emoji: '🐉', color: '#b3402f' },
-];
-
-export function bossArtFor(difficulty: string): BossArt {
-  const i = Math.max(0, BOSS_ART.findIndex((b) => b.name.toLowerCase().includes(difficulty.toLowerCase())));
-  return BOSS_ART[i] ?? BOSS_ART[0];
-}

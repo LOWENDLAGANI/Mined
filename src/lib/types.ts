@@ -9,15 +9,8 @@ export interface UserProfile {
   email: string;
   photoURL: null;
   avatarId?: string;
-  xp: number;
-  level: number;
-  currentStreak: number;
-  longestStreak: number;
-  gamesPlayed: number;
-  gamesWon: number;
   totalCorrect: number;
   totalQuestions: number;
-  lastPlayedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -50,7 +43,8 @@ export interface Quiz {
   updatedAt: string;
 }
 
-export type GameMode = 'classic' | 'race' | 'battle' | 'boss' | 'treasure' | 'survival' | 'team';
+/** How a live quiz is paced. */
+export type Pacing = 'classic' | 'self_paced';
 
 export type SessionStatus = 'waiting' | 'countdown' | 'question_active' | 'question_results' | 'finished';
 
@@ -60,23 +54,15 @@ export interface SessionSettings {
   maxSpeedBonus: number;
   showLeaderboard: boolean;
   joinLocked: boolean;
-  // mode specific
-  startLives?: number; // survival
-  bossHp?: number; // boss
-  bossName?: string; // boss
-  bossEmoji?: string; // boss
-  teamCount?: number; // team
-  finishDistance?: number; // race
-  totalCoins?: number; // treasure
 }
 
 export interface GameSession {
   id: string;
-  gameCode: string;
+  pin: string; // 5-character join code
   quizId: string;
   quizTitle: string;
   teacherId: string;
-  gameMode: GameMode;
+  pacing: Pacing;
   status: SessionStatus;
   settings: SessionSettings;
   questionCount: number;
@@ -86,9 +72,6 @@ export interface GameSession {
   /** Server-published answer key for the PREVIOUS/closed question. Only set
    *  once the question window has closed — never during active play. */
   lastReveal?: { correctOption: number; explanation: string } | null;
-  /** Boss mode: cumulative damage dealt by the class (server-maintained). */
-  bossDamage?: number;
-  bossDefeated?: boolean;
   /** Set when the session finishes: uids of the winner(s). */
   winners?: string[];
   createdAt: string;
@@ -102,17 +85,14 @@ export interface PlayerState {
   photoURL: null;
   avatarId?: string;
   score: number;
-  xpEarned: number;
   correctAnswers: number;
   questionsAnswered: number;
   streak: number;
-  eliminated?: boolean;
-  lives?: number; // survival
-  position?: number; // race progress 0..1
-  teamId?: string; // team
-  coins?: number; // treasure
-  locationsUnlocked?: number; // treasure
   currentGameState: string;
+  // Self-paced progress: which question this player is on and its deadline.
+  playerQuestionIndex?: number;
+  playerQuestionEndsAt?: string | null;
+  playerStatus?: 'playing' | 'finished';
   joinedAt: string;
   lastActiveAt: string;
 }
@@ -126,27 +106,14 @@ export interface AnswerDoc {
   responseTime: number;
   isCorrect: boolean;
   pointsEarned: number;
-  xpEarned: number;
   streakAfter?: number;
-  modeEvent?: Record<string, unknown>;
 }
 
-export interface AchievementDef {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-}
-
-export interface UserAchievement {
-  achievementId: string;
-  unlockedAt: string;
-}
-
+/** Written by the server when a session finishes — one per player. */
 export interface GameResultDoc {
   sessionId: string;
   quizId: string;
-  gameMode: GameMode;
+  teacherId: string;
   uid: string;
   displayName: string;
   avatarId?: string;
@@ -155,20 +122,8 @@ export interface GameResultDoc {
   correctAnswers: number;
   questionsAnswered: number;
   accuracy: number;
-  xpEarned: number;
-  won: boolean;
   streak: number;
-  achievementsUnlocked: string[];
   createdAt: string;
+  // Denormalized from the session doc for easy listing.
+  quizTitle?: string;
 }
-
-export const ACHIEVEMENTS: AchievementDef[] = [
-  { id: 'first_game', name: 'First Game', description: 'Complete your first game.', icon: '🎮' },
-  { id: 'perfect', name: 'Perfect', description: 'Answer every question correctly in a game.', icon: '💯' },
-  { id: 'on_fire', name: 'On Fire', description: 'Get 10 correct answers in a row.', icon: '🔥' },
-  { id: 'champion', name: 'Champion', description: 'Win your first game.', icon: '🏆' },
-  { id: 'century', name: 'Century', description: 'Earn 100 XP.', icon: '💎' },
-  { id: 'legend', name: 'Legend', description: 'Reach Level 10.', icon: '👑' },
-  { id: 'survivor', name: 'Survivor', description: 'Win a Survival game.', icon: '🛡️' },
-  { id: 'boss_slayer', name: 'Boss Slayer', description: 'Deal the killing blow to a boss.', icon: '⚔️' },
-];

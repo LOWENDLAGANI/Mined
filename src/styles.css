@@ -1,4 +1,4 @@
-/* Mined — Learn. Play. Level Up.
+/* Mined — classroom live quizzes.
    Design language: "paper & ink" — warm paper surfaces, ink text, serif
    display headings, hairline rules, one spruce-green accent. No glass, no
    glow, no gradient soup. */
@@ -66,6 +66,43 @@ a:hover { color: #174a39; }
 
 .muted { color: var(--muted); }
 .error-text { color: var(--danger); font-weight: 600; }
+
+/* ---------- Loud expandable error banner ---------- */
+
+.error-banner {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto 16px;
+  background: #fbeeea;
+  border: 2px solid var(--danger);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  text-align: left;
+  animation: error-pop 0.25s ease;
+}
+@keyframes error-pop { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.error-banner-title {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 700; font-size: 1.1rem; color: var(--danger);
+}
+.error-banner-msg { margin: 6px 0 10px; font-weight: 500; color: var(--ink); }
+.error-banner-toggle {
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  font-weight: 700; color: var(--danger); font-size: 0.9rem;
+  padding: 4px 6px; border-radius: var(--radius-sm);
+}
+.error-banner-toggle:hover { background: rgba(179, 64, 47, 0.1); }
+.error-banner-details {
+  margin-top: 10px; padding: 12px 14px;
+  background: var(--surface);
+  border: 1px dashed var(--danger);
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem; line-height: 1.5; word-break: break-word;
+}
+.error-banner-details code {
+  background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 0.84rem;
+}
 .ok-text { color: var(--success); font-weight: 600; }
 
 .visually-hidden {
@@ -465,6 +502,12 @@ a:hover { color: #174a39; }
 .feedback-title { font-family: var(--font-display); font-size: clamp(2.2rem, 8vw, 3.6rem); font-weight: 700; letter-spacing: 0.06em; animation: pop-in 0.3s ease; }
 .feedback-pts { font-family: var(--font-display); font-size: clamp(1.5rem, 5vw, 2.4rem); font-weight: 700; color: #f2d38c; animation: float-up 0.9s ease; }
 .feedback-detail { font-size: 1.02rem; max-width: 560px; }
+.feedback-continue {
+  margin-top: 14px; padding: 12px 36px;
+  background: #fff; color: var(--ink); border: none; border-radius: 999px;
+  font-family: inherit; font-weight: 800; font-size: 1.05rem; cursor: pointer;
+}
+.feedback-continue:hover { transform: translateY(-1px); }
 @keyframes float-up { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 .streak-flames { font-size: 1.8rem; letter-spacing: 0.12em; animation: pop-in 0.4s ease; }

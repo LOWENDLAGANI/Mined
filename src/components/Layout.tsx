@@ -28,7 +28,7 @@ const TEACHER_NAV: NavItem[] = [
   { to: '/teacher/dashboard', label: 'Dashboard', icon: 'home' },
   { to: '/teacher/quizzes', label: 'My Quizzes', icon: 'quiz' },
   { to: '/teacher/quizzes/new', label: 'Create Quiz', icon: 'create' },
-  { to: '/teacher/games', label: 'Games', icon: 'play' },
+  { to: '/teacher/sessions', label: 'Sessions', icon: 'play' },
   { to: '/teacher/results', label: 'Results', icon: 'trophy' },
   { to: '/teacher/profile', label: 'Profile', icon: 'user' },
   { to: '/teacher/settings', label: 'Settings', icon: 'settings' },
@@ -37,8 +37,6 @@ const TEACHER_NAV: NavItem[] = [
 const STUDENT_NAV: NavItem[] = [
   { to: '/student', label: 'Home', icon: 'home' },
   { to: '/student/progress', label: 'My Progress', icon: 'progress' },
-  { to: '/student/achievements', label: 'Achievements', icon: 'achievements' },
-  { to: '/student/leaderboard', label: 'Leaderboard', icon: 'trophy' },
   { to: '/student/profile', label: 'Profile', icon: 'user' },
   { to: '/student/settings', label: 'Settings', icon: 'settings' },
 ];
@@ -98,15 +96,15 @@ export function Layout() {
             })}
           </nav>
           <div className="side-nav-tip">
-            <strong>{isTeacher ? 'Ready to teach?' : 'Keep learning!'}</strong>
-            <span>{isTeacher ? 'Create a quiz, then host a live game for your class.' : 'Join a game with a code from your teacher to earn XP.'}</span>
+            <strong>{isTeacher ? 'Ready to teach?' : 'Ready to play?'}</strong>
+            <span>{isTeacher ? 'Create a quiz, then run it live for your class.' : 'Enter the PIN from your teacher to join the quiz.'}</span>
           </div>
         </aside>
         <main className="app-main">
           <Outlet />
         </main>
       </div>
-      <footer className="app-footer">Mined — classroom quiz games</footer>
+      <footer className="app-footer">Mined</footer>
     </div>
   );
 }

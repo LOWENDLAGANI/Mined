@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button, Input } from '../components/ui';
+import { ErrorBanner, describeError } from '../components/ErrorBanner';
 import { useAuth } from '../auth/AuthContext';
 import { AVATARS } from '../assets/avatars';
 import { friendlyAuthError } from '../lib/format';
@@ -19,6 +20,7 @@ export function Register() {
   const [confirm, setConfirm] = useState('');
   const [avatarId, setAvatarId] = useState('a1');
   const [error, setError] = useState('');
+  const [errorDetails, setErrorDetails] = useState<{ technical: string; hint: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (!safeRole) {
@@ -32,9 +34,16 @@ export function Register() {
     );
   }
 
+  function authError(err: unknown) {
+    const e = err as { code?: string; message?: string };
+    setError(friendlyAuthError(e.code ?? '', e.message));
+    setErrorDetails(describeError(err, 'auth'));
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    setErrorDetails(null);
     if (password !== confirm) {
       setError('Passwords don’t match.');
       return;
@@ -48,8 +57,7 @@ export function Register() {
       await register({ role: safeRole!, displayName: displayName.trim(), email: email.trim(), password, avatarId });
       nav(safeRole === 'teacher' ? '/teacher/dashboard' : '/student');
     } catch (err) {
-      const e = err as { code?: string; message?: string };
-      setError(friendlyAuthError(e.code ?? '', e.message));
+      authError(err);
     } finally {
       setBusy(false);
     }
@@ -57,13 +65,13 @@ export function Register() {
 
   async function onGoogle() {
     setError('');
+    setErrorDetails(null);
     setBusy(true);
     try {
       await loginGoogle();
       nav('/student');
     } catch (err) {
-      const e = err as { code?: string; message?: string };
-      setError(friendlyAuthError(e.code ?? '', e.message));
+      authError(err);
     } finally {
       setBusy(false);
     }
@@ -76,16 +84,32 @@ export function Register() {
           {safeRole === 'teacher' ? 'Teacher sign-up' : 'Student sign-up'}
         </h1>
         {!firebaseConfigured && (
-          <p className="error-text" role="alert" style={{ marginBottom: 12 }}>
-            Server connection isn’t configured on this deployment — sign-up is disabled. The site owner needs to add the Firebase environment variables and redeploy.
-          </p>
+          <div style={{ marginBottom: 12 }}>
+            <ErrorBanner
+              title="Sign-up is disabled"
+              message="Server connection isn’t configured on this deployment. The site owner needs to add the Firebase environment variables and redeploy."
+              technical="firebaseConfigured === false (missing VITE_FIREBASE_* / FIREBASE_* env vars at build time)"
+              hint="Add the Firebase web config to .env (or .env.local), then rebuild: npm run build."
+            />
+          </div>
         )}
 
         <form onSubmit={onSubmit} style={{ width: '100%' }}>
           <Input label="Display name" name="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required maxLength={40} placeholder={safeRole === 'teacher' ? 'Mr. Alex' : 'Alex'} />
           <Input label="Email" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
           <Input label="Password" name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} autoComplete="new-password" />
-          <Input label="Confirm password" name="confirmPassword" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required minLength={6} autoComplete="new-password" error={error || undefined} />
+          <Input label="Confirm password" name="confirmPassword" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required minLength={6} autoComplete="new-password" />
+          {error && (
+            <div style={{ marginTop: 4 }}>
+              <ErrorBanner
+                title={safeRole === 'teacher' ? "Couldn't create the teacher account" : "Couldn't create the account"}
+                message={error}
+                technical={errorDetails?.technical}
+                hint={errorDetails?.hint}
+                onDismiss={() => setError('')}
+              />
+            </div>
+          )}
 
           {safeRole === 'student' && (
             <div className="field">

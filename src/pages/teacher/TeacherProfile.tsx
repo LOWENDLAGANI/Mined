@@ -9,7 +9,7 @@ import { db } from '../../lib/firebase';
 export function TeacherProfile() {
   const { profile } = useAuth();
   const [quizCount, setQuizCount] = useState(0);
-  const [gameCount, setGameCount] = useState(0);
+  const [sessionCount, setSessionCount] = useState(0);
   const [studentsReached, setStudentsReached] = useState(0);
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export function TeacherProfile() {
         const qs = await getDocs(query(collection(db, 'quizzes'), where('ownerId', '==', profile.uid)));
         setQuizCount(qs.size);
         const gs = await getDocs(query(collection(db, 'gameSessions'), where('teacherId', '==', profile.uid)));
-        setGameCount(gs.size);
+        setSessionCount(gs.size);
         const rs = await getDocs(query(collection(db, 'gameResults'), where('teacherId', '==', profile.uid)));
         setStudentsReached(new Set(rs.docs.map((d) => (d.data() as { uid: string }).uid)).size);
       } catch { /* ignore */ }
@@ -49,7 +49,7 @@ export function TeacherProfile() {
       </Panel>
       <div className="grid grid-3 mt-2">
         <Stat label="Quizzes created" value={formatNumber(quizCount)} icon="📚" />
-        <Stat label="Games hosted" value={formatNumber(gameCount)} icon="🎮" />
+        <Stat label="Sessions hosted" value={formatNumber(sessionCount)} icon="📺" />
         <Stat label="Students reached" value={formatNumber(studentsReached)} icon="🧑‍🎓" />
       </div>
     </div>

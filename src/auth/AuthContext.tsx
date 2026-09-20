@@ -56,12 +56,6 @@ function defaultProfile(user: User): UserProfile {
     email: user.email ?? '',
     photoURL: null,
     avatarId: 'a1',
-    xp: 0,
-    level: 1,
-    currentStreak: 0,
-    longestStreak: 0,
-    gamesPlayed: 0,
-    gamesWon: 0,
     totalCorrect: 0,
     totalQuestions: 0,
     createdAt: now,
@@ -81,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * through `profileError` so the UI can show actionable guidance instead of
    * hanging on a spinner.
    */
-  const ensureProfile = useCallback(async (u: User) => {
+  const ensureProfile = useCallback(async (u: User, retry = true) => {
     const ref = doc(db, 'users', u.uid);
     try {
       const snap = await withTimeout(getDoc(ref), 10000);
@@ -98,6 +92,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       const code = (e as { code?: string })?.code ?? '';
       const msg = (e as Error)?.message ?? '';
+      // Transient permission-denied: the first read can fire before the auth
+      // token finishes propagating (seen right after sign-in / route swaps).
+      // One delayed retry resolves it — only surface 'denied' if it repeats.
+      if (retry && code.includes('permission-denied')) {
+        await new Promise((r) => setTimeout(r, 1200));
+        return ensureProfile(u, false);
+      }
       setProfile(null);
       if (code.includes('permission-denied')) setProfileError('denied');
       else if (msg === 'timeout') setProfileError('timeout');
@@ -149,12 +150,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: data.email,
       photoURL: null,
       avatarId: data.avatarId ?? 'a1',
-      xp: 0,
-      level: 1,
-      currentStreak: 0,
-      longestStreak: 0,
-      gamesPlayed: 0,
-      gamesWon: 0,
       totalCorrect: 0,
       totalQuestions: 0,
       createdAt: now,
@@ -179,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) await ensureProfile(user);
   }, [user, ensureProfile]);
 
-  // Keep profile fresh when the underlying user doc changes (XP updates mid-session).
+  // Keep profile fresh when the underlying user doc changes (stats update mid-session).
   useEffect(() => {
     if (!user) return;
     const unsub = onSnapshot(

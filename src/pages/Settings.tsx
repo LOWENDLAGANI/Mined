@@ -1,6 +1,7 @@
 // Mined — Settings (shared by both roles).
 import { useState, type FormEvent } from 'react';
 import { Button, Input, Panel } from '../components/ui';
+import { ErrorBanner, describeError } from '../components/ErrorBanner';
 import { useAuth } from '../auth/AuthContext';
 import { updateUserProfile } from '../lib/firestore';
 import { AVATARS } from '../assets/avatars';
@@ -13,6 +14,7 @@ export function Settings() {
   const [saved, setSaved] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const [errorDetails, setErrorDetails] = useState<{ technical: string; hint: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (!profile) return null;
@@ -28,6 +30,7 @@ export function Settings() {
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       setError(friendlyFirestoreError((err as { code?: string })?.code ?? ''));
+      setErrorDetails(describeError(err, 'updateUserProfile'));
     } finally {
       setBusy(false);
     }
@@ -35,6 +38,7 @@ export function Settings() {
 
   async function onResetPassword() {
     setError('');
+    setErrorDetails(null);
     try {
       if (profile?.email) {
         await resetPassword(profile.email);
@@ -43,6 +47,7 @@ export function Settings() {
       }
     } catch (err) {
       setError(friendlyFirestoreError((err as { code?: string })?.code ?? ''));
+      setErrorDetails(describeError(err, 'sendPasswordResetEmail'));
     }
   }
 
@@ -72,10 +77,20 @@ export function Settings() {
               ))}
             </div>
           </div>
+          {error && (
+            <div style={{ marginBottom: 12 }}>
+              <ErrorBanner
+                title="Couldn't save your profile"
+                message={error}
+                technical={errorDetails?.technical}
+                hint={errorDetails?.hint}
+                onDismiss={() => setError('')}
+              />
+            </div>
+          )}
           <div className="row">
             <Button type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</Button>
             {saved && <span className="ok-text">Saved ✓</span>}
-            {error && <span className="error-text">{error}</span>}
           </div>
         </form>
       </Panel>
@@ -85,10 +100,20 @@ export function Settings() {
         <p className="muted" style={{ marginBottom: 10 }}>
           Signed in as <strong>{profile.email}</strong> ({profile.role})
         </p>
+        {error && !saved && (
+          <div style={{ marginTop: 12 }}>
+            <ErrorBanner
+              title="Account action failed"
+              message={error}
+              technical={errorDetails?.technical}
+              hint={errorDetails?.hint}
+              onDismiss={() => setError('')}
+            />
+          </div>
+        )}
         <div className="row">
           <Button variant="secondary" onClick={onResetPassword}>Send password reset email</Button>
           {sent && <span className="ok-text">Reset email sent ✓</span>}
-          {error && <span className="error-text">{error}</span>}
         </div>
       </Panel>
     </div>

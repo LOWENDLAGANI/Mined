@@ -1,24 +1,25 @@
-// Mined — Student home (Level / XP / streak / JOIN GAME / recent games).
+// Mined — Student home (accuracy stats + JOIN + recent quizzes).
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { Button, Card, Panel, ProgressBar, Stat, EmptyState } from '../../components/ui';
-import { levelProgress } from '../../lib/scoring';
-import { ACHIEVEMENTS } from '../../lib/types';
+import { Button, Card, Panel, Stat, EmptyState } from '../../components/ui';
+import { ErrorBanner, describeError } from '../../components/ErrorBanner';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { GameResultDoc } from '../../lib/types';
-import { formatNumber, modeIcon, modeLabel, timeAgo } from '../../lib/format';
+import { formatNumber, timeAgo } from '../../lib/format';
 import { AVATARS } from '../../assets/avatars';
 
 export function StudentHome() {
   const { profile } = useAuth();
   const nav = useNavigate();
   const [recent, setRecent] = useState<GameResultDoc[]>([]);
-  const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
+  const [recentError, setRecentError] = useState<{ technical: string; hint: string } | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     if (!profile) return;
+    setRecentError(null);
     (async () => {
       try {
         const q = query(
@@ -29,17 +30,14 @@ export function StudentHome() {
         );
         const snap = await getDocs(q);
         setRecent(snap.docs.map((d) => d.data() as GameResultDoc));
-
-        const ach = await getDocs(collection(db, 'userAchievements', profile.uid, 'items'));
-        setUnlocked(new Set(ach.docs.map((d) => d.id)));
-      } catch {
-        // ignore — panels just stay empty
+      } catch (e) {
+        // Was silent — the "Recent quizzes" panel just looked empty.
+        setRecentError(describeError(e, 'recent gameResults query'));
       }
     })();
-  }, [profile]);
+  }, [profile, reloadTick]);
 
   if (!profile) return null;
-  const lp = levelProgress(profile.xp);
   const accuracy = profile.totalQuestions > 0 ? Math.round((profile.totalCorrect / profile.totalQuestions) * 100) : 0;
   const avatar = AVATARS.find((a) => a.id === profile.avatarId) ?? AVATARS[0];
 
@@ -57,44 +55,44 @@ export function StudentHome() {
             <div className="muted">{profile.role === 'teacher' ? 'Teacher account' : 'Student'}</div>
           </div>
         </div>
-        <Button size="lg" onClick={() => nav('/join')}>Join a game</Button>
+        <Button size="lg" onClick={() => nav('/join')}>Join a quiz</Button>
       </div>
 
       <Panel className="xp-hero">
-        <div className="xp-level">LEVEL {lp.level}</div>
-        <div className="xp-bar">
-          <ProgressBar value={lp.progress} label={`Level progress: ${formatNumber(lp.intoLevel)} of ${formatNumber(lp.needed)} XP`} />
-        </div>
-        <div className="xp-progress-label" style={{ maxWidth: 420, margin: '8px auto 0' }}>
-          <span>{formatNumber(lp.currentXP)} XP</span>
-          <span className="muted">{formatNumber(lp.nextLevelXP)} XP to Level {lp.level + 1}</span>
-        </div>
-        <div className="streak-flame mt-2">{profile.currentStreak}-day streak{profile.longestStreak > 0 ? ` · best: ${profile.longestStreak}` : ''}</div>
+        <div className="xp-level" style={{ fontSize: '1.8rem' }}>{avatar.emoji} Ready when you are</div>
+        <p className="muted" style={{ margin: '6px 0 0' }}>Enter the PIN your teacher shows to jump into a live quiz.</p>
       </Panel>
 
-      <div className="grid grid-4 mt-2">
-        <Stat label="Games played" value={formatNumber(profile.gamesPlayed)} icon="🎮" />
-        <Stat label="Games won" value={formatNumber(profile.gamesWon)} icon="🏆" />
+      <div className="grid grid-3 mt-2">
+        <Stat label="Quizzes played" value={formatNumber(recent.length > 0 ? recent.length : 0)} icon="📺" />
         <Stat label="Accuracy" value={`${accuracy}%`} icon="🎯" />
-        <Stat label="Total XP" value={formatNumber(profile.xp)} icon="⚡" />
+        <Stat label="Questions answered" value={formatNumber(profile.totalQuestions)} icon="❓" />
       </div>
 
       <div className="grid grid-2 mt-2">
         <Panel>
           <div className="row-between mb-1">
-            <h3>Recent games</h3>
+            <h3>Recent quizzes</h3>
             <Link to="/student/progress" className="muted" style={{ fontSize: '0.85rem' }}>See all →</Link>
           </div>
+          {recentError && (
+            <ErrorBanner
+              title="Couldn't load recent quizzes"
+              message="Your quiz history didn't load. Try again."
+              technical={recentError.technical}
+              hint={recentError.hint}
+              onRetry={() => setReloadTick((t) => t + 1)}
+            />
+          )}
           {recent.length === 0 ? (
-            <EmptyState icon="🎲" title="No games yet" hint="Join your first game to start earning XP!" />
+            <EmptyState icon="📺" title="No quizzes yet" hint="Join your first live quiz with a PIN." />
           ) : (
             <div className="stack">
               {recent.map((r, i) => (
                 <Card key={i} className="rank-row">
-                  <span aria-hidden="true">{modeIcon(r.gameMode)}</span>
-                  <span className="rank-name">{modeLabel(r.gameMode)} · {r.score} pts</span>
+                  <span className="rank-name">{r.quizTitle || 'Quiz'} · {r.score} pts</span>
                   <span className="muted" style={{ fontSize: '0.85rem' }}>{timeAgo(r.createdAt)}</span>
-                  <span className="rank-score">+{r.xpEarned} XP</span>
+                  <span className="rank-score">{r.correctAnswers}/{r.questionsAnswered} correct</span>
                 </Card>
               ))}
             </div>
@@ -102,25 +100,14 @@ export function StudentHome() {
         </Panel>
 
         <Panel>
-          <div className="row-between mb-1">
-            <h3>Achievements</h3>
-            <Link to="/student/achievements" className="muted" style={{ fontSize: '0.85rem' }}>All achievements →</Link>
-          </div>
-          <div className="stack">
-            {ACHIEVEMENTS.slice(0, 4).map((a) => (
-              <div key={a.id} className="row">
-                <span className="ach-icon" aria-hidden="true">{unlocked.has(a.id) ? a.icon : '🔒'}</span>
-                <div>
-                  <div className="ach-name">{a.name}</div>
-                  <div className="ach-desc">{a.description}</div>
-                </div>
-              </div>
-            ))}
+          <h3>How it works</h3>
+          <div className="stack mt-1">
+            <div className="row"><span style={{ fontSize: '1.3rem' }} aria-hidden="true">1️⃣</span><span>Your teacher starts a live quiz and shows a PIN.</span></div>
+            <div className="row"><span style={{ fontSize: '1.3rem' }} aria-hidden="true">2️⃣</span><span>You enter the PIN on the Join page.</span></div>
+            <div className="row"><span style={{ fontSize: '1.3rem' }} aria-hidden="true">3️⃣</span><span>Answer fast — quicker answers earn more points.</span></div>
           </div>
         </Panel>
       </div>
-
-
     </div>
   );
 }

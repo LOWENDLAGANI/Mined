@@ -1,43 +1,48 @@
-// Mined — Join Game: student enters a game code and is placed into the session.
+// Mined — Join: student enters a PIN and is placed into the live quiz.
 import { useState, type FormEvent } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Button, Input } from '../components/ui';
+import { ErrorBanner, describeError } from '../components/ErrorBanner';
 import { useAuth } from '../auth/AuthContext';
-import { joinGameByCode } from '../lib/gameService';
+import { joinQuizByPin } from '../lib/gameService';
 
 export function Join() {
   const nav = useNavigate();
   const { user, profile } = useAuth();
-  // ?code=XXXX comes back from the login flow (Login honors ?next=/join&code=…).
+  // ?code=XXXXX comes back from the login flow (Login honors ?next=/join&code=…).
   const [sp] = useSearchParams();
   const [code, setCode] = useState((sp.get('code') ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5));
   const [error, setError] = useState('');
+  const [errorDetails, setErrorDetails] = useState<{ technical: string; hint: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function onContinue(e: FormEvent) {
     e.preventDefault();
     setError('');
+    setErrorDetails(null);
     if (code.trim().length !== 5) {
-      setError('Game codes are 5 characters.');
+      setError('PINs are 5 characters.');
       return;
     }
     if (!user) {
       // The backend only accepts joins from signed-in users — send them to
-      // login first (keeping the code so they can resume after signing in).
+      // login first (keeping the PIN so they can resume after signing in).
       nav(`/login?next=/join&code=${code}`);
       return;
     }
     setBusy(true);
     try {
-      const res = await joinGameByCode(code, profile ? { uid: profile.uid, displayName: profile.displayName, photoURL: profile.photoURL, avatarId: profile.avatarId } : null);
+      const res = await joinQuizByPin(code, profile ? { uid: profile.uid, displayName: profile.displayName, photoURL: profile.photoURL, avatarId: profile.avatarId } : null);
       if (!res.ok) {
         setError(res.error);
+        setErrorDetails({ technical: res.technical ?? '— no detail —', hint: res.hint ?? 'Reproduce in devtools and inspect the joinQuiz call in the network tab.' });
         setBusy(false);
         return;
       }
-      nav(`/game/${res.sessionId}`);
-    } catch {
-      setError('Could not join the game. Try again.');
+      nav(`/play/${res.sessionId}`);
+    } catch (e) {
+      setError('Could not join. Try again.');
+      setErrorDetails(describeError(e, 'joinQuizByPin'));
       setBusy(false);
     }
   }
@@ -45,17 +50,17 @@ export function Join() {
   return (
     <div className="page-center">
       <div className="glass-card">
-        <h1>Join Game</h1>
+        <h1>Join a quiz</h1>
         <p className="muted" style={{ margin: '0 auto 18px', maxWidth: 340 }}>
           {user
-            ? 'Enter the code your teacher is showing.'
-            : 'Enter the game code — you’ll be asked to sign in first so your XP is saved.'}
+            ? 'Enter the PIN your teacher is showing.'
+            : 'Enter the PIN — you’ll be asked to sign in first so your results are saved.'}
         </p>
 
         <form onSubmit={onContinue} style={{ width: '100%' }}>
           <Input
-            label="Game code"
-            name="gameCode"
+            label="Quiz PIN"
+            name="pin"
             className="code-input"
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5))}
@@ -71,7 +76,17 @@ export function Join() {
           <Button type="submit" size="xl" full disabled={busy || code.length !== 5}>
             {busy ? 'Joining…' : user ? 'Continue' : 'Sign in & join'}
           </Button>
-          {error && <p className="error-text" role="alert" style={{ textAlign: 'center', marginTop: 12 }}>{error}</p>}
+          {error && (
+            <div style={{ marginTop: 12, textAlign: 'left' }}>
+              <ErrorBanner
+                title="Couldn't join the quiz"
+                message={error}
+                technical={errorDetails?.technical}
+                hint={errorDetails?.hint}
+                onDismiss={() => setError('')}
+              />
+            </div>
+          )}
         </form>
 
         <p className="muted" style={{ marginTop: 16, marginBottom: 0 }}>
