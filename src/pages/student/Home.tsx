@@ -9,6 +9,7 @@ import { db } from '../../lib/firebase';
 import type { GameResultDoc } from '../../lib/types';
 import { formatNumber, timeAgo } from '../../lib/format';
 import { AVATARS } from '../../assets/avatars';
+import { ResumeSessionCard } from '../../components/ResumeSessionCard';
 
 export function StudentHome() {
   const { profile } = useAuth();
@@ -57,6 +58,8 @@ export function StudentHome() {
         </div>
         <Button size="lg" onClick={() => nav('/join')}>Join a quiz</Button>
       </div>
+
+      <ResumeSessionCard />
 
       <Panel className="xp-hero">
         <div className="xp-level" style={{ fontSize: '1.8rem' }}>{avatar.emoji} Ready when you are</div>

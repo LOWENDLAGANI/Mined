@@ -19,6 +19,7 @@ import { soundPlayer } from '../../assets/brand';
 import type { GameSession, PlayerState } from '../../lib/types';
 import { formatNumber } from '../../lib/format';
 import { GameResultsStudent } from './GameResultsStudent';
+import { saveActiveSession, clearActiveSession } from '../../lib/sessionTracker';
 
 // Kahoot-style answer buttons: shape + color per slot.
 const KEYS = ['▲', '◆', '●', '■'];
@@ -58,10 +59,22 @@ export function Play() {
         setMe(null);
         // A missing player doc only means "kicked" if we actually had a doc
         // before — otherwise it's just the initial snapshot racing the join.
-        if (hadMe.current) setKicked(true);
+        if (hadMe.current) { setKicked(true); clearActiveSession(); }
       }
     });
   }, [sessionId, user]);
+
+  // Remember this session so a refresh / app quit can resume via the
+  // dashboard's "Continue where you left off" card. Cleared on finish, kick,
+  // or explicit leave below.
+  useEffect(() => {
+    if (!session || !user) return;
+    saveActiveSession({ sessionId: session.id, quizTitle: session.quizTitle, pin: session.pin });
+  }, [session?.id, user?.uid]);
+
+  useEffect(() => {
+    if (session?.status === 'finished') clearActiveSession();
+  }, [session?.status]);
 
   useEffect(() => {
     if (!session) return;
@@ -239,6 +252,7 @@ export function Play() {
           size="sm"
           onClick={async () => {
             soundPlayer.stop();
+            clearActiveSession();
             await leaveSession(session.id);
             nav('/join');
           }}

@@ -5,6 +5,7 @@ import { Button, Input } from '../components/ui';
 import { ErrorBanner, describeError } from '../components/ErrorBanner';
 import { useAuth } from '../auth/AuthContext';
 import { joinQuizByPin } from '../lib/gameService';
+import { ResumeSessionCard } from '../components/ResumeSessionCard';
 
 export function Join() {
   const nav = useNavigate();
@@ -50,6 +51,9 @@ export function Join() {
   return (
     <div className="page-center">
       <div className="glass-card">
+        <div style={{ width: '100%', maxWidth: 420, margin: '0 auto 16px', textAlign: 'left' }}>
+          <ResumeSessionCard />
+        </div>
         <h1>Join a quiz</h1>
         <p className="muted" style={{ margin: '0 auto 18px', maxWidth: 340 }}>
           {user

@@ -10,17 +10,17 @@ export function RoleSelect() {
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
           <Logo size="lg" />
         </div>
-        <h1>How will you use Mined?</h1>
-        <p className="muted" style={{ marginTop: -6 }}>Pick a role to set up your account. This can’t be changed later.</p>
+        <h1>Mined?</h1>
+        <p className="muted" style={{ marginTop: -6 }}>Choose carefully ya😊❤️🫣😘😊🫣❤️</p>
 
         <div className="role-cards">
           <button className="role-card role-card--teacher" onClick={() => nav('/register/teacher')}>
             <div className="role-card-title">Teacher</div>
-            <div className="role-card-desc">Create quizzes, host live games, and review class results.</div>
+            <div className="role-card-desc">Teacher? Sure Sure Here It Is</div>
           </button>
           <button className="role-card role-card--student" onClick={() => nav('/register/student')}>
             <div className="role-card-title">Student</div>
-            <div className="role-card-desc">Join games with a code, answer questions, and earn XP.</div>
+            <div className="role-card-desc">Student? Pelajar? Siyes?</div>
           </button>
         </div>
 
