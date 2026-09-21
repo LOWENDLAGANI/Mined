@@ -201,7 +201,7 @@ export function Play() {
         />
       )}
       <div className="play-topbar">
-        <Logo size="sm" />
+        <span className="play-topbar-brand"><Logo size="sm" /></span>
         <span className="muted" style={{ fontWeight: 700 }}>
           {isSelfPaced ? '🚶 Self-paced' : '📺 Classic'} · {questionIndex + 1}/{session.questionCount}
         </span>

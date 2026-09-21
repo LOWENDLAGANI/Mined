@@ -47,6 +47,7 @@ body {
   background-repeat: no-repeat;
   -webkit-font-smoothing: antialiased;
   font-size: 15.5px;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 h1, h2, h3, h4 {
@@ -123,6 +124,123 @@ a:hover { color: #174a39; }
 }
 .glass-card > h1 { margin-bottom: 1rem; }
 
+/* ---------- Split-screen auth (desktop) + blurred photo (mobile) ---------- */
+
+.auth-split {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+}
+
+/* Phones: blurred full-bleed photo + scrim behind the form card. */
+.auth-split-mobile-bg {
+  display: none;
+}
+
+.auth-split-form {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  min-width: 0;
+}
+
+.auth-split-card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 34px 32px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.auth-split-brand { display: flex; justify-content: center; margin-bottom: 14px; }
+
+/* Desktop: right-side picture panel. */
+.auth-split-side {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  .auth-split-side {
+    display: block;
+    flex: 1 1 52%;
+    position: relative;
+    overflow: hidden;
+    border-left: 1px solid var(--line-strong);
+  }
+
+  .auth-split-side img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .auth-split-side-fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: linear-gradient(160deg, var(--primary) 0%, #174a39 100%);
+    color: var(--primary-ink);
+    padding: 40px;
+    text-align: center;
+  }
+  .auth-split-side-fallback p {
+    font-size: 1.15rem;
+    font-weight: 600;
+    max-width: 320px;
+    margin: 0;
+    opacity: 0.9;
+  }
+}
+
+@media (max-width: 900px) {
+  .auth-split {
+    align-items: center;
+    padding: 20px 14px;
+  }
+
+  .auth-split-mobile-bg {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+  }
+
+  .auth-split-mobile-bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(18px) brightness(0.85);
+    transform: scale(1.15); /* hide blurred edge bleed */
+  }
+
+  /* Soft scrim so the white form card still pops. */
+  .auth-split-mobile-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(38, 35, 28, 0.35);
+  }
+
+  .auth-split-card {
+    padding: 26px 18px;
+  }
+
+  .auth-split-card h1 { font-size: 1.3rem; }
+}
+
 /* ---------- App shell ---------- */
 
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
@@ -194,13 +312,91 @@ a:hover { color: #174a39; }
 .app-main { flex: 1; width: 100%; max-width: 1080px; margin: 0 auto; padding: 34px 32px 64px; }
 .app-main--wide { max-width: 1280px; }
 
+/* ---------- Phone bottom tab bar ---------- */
+
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .bottom-nav {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 60;
+    display: flex;
+    background: var(--surface);
+    border-top: 1px solid var(--line-strong);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    box-shadow: 0 -2px 12px rgba(64, 56, 32, 0.08);
+  }
+
+  .bottom-nav-link {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 2px;
+    border-radius: var(--radius-sm);
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 0.68rem;
+    font-weight: 700;
+    min-height: 50px;
+    justify-content: center;
+  }
+
+  .bottom-nav-link.active {
+    color: var(--primary);
+  }
+
+  .bottom-nav-link.active svg { transform: scale(1.08); }
+
+  /* Content clears the fixed bar. */
+  .app-main { padding-bottom: 84px; }
+  .app-footer { display: none; }
+  .topbar-nav { display: none !important; }
+}
+
+/* Desktop: never show the tab bar. */
+@media (min-width: 901px) {
+  .bottom-nav { display: none !important; }
+}
+
 .app-footer {
   text-align: center; color: var(--muted); font-size: 0.8rem;
   padding: 18px; border-top: 1px solid var(--line);
   background: var(--surface);
 }
 
-.page-center { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+.page-center { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+
+/* ---------- Play screen shell (student live quiz) ---------- */
+
+.play-bg {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 14px 14px 40px;
+}
+
+.play-bg-img {
+  /* sized inline by Play.tsx (fixed, full-viewport cover) */
+}
+
+.play-topbar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 14px;
+  margin: -14px -14px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line-strong);
+  padding-top: calc(10px + env(safe-area-inset-top));
+}
+
+.play-topbar .muted { font-size: 0.9rem; }
+
+.play-topbar-brand { display: inline-flex; min-width: 0; overflow: hidden; }
+.play-topbar-brand .logo-word { font-size: 20px !important; }
 
 /* ---------- Logo ---------- */
 
@@ -295,7 +491,8 @@ a:hover { color: #174a39; }
   border-radius: var(--radius-sm);
   color: var(--ink);
   padding: 10px 12px;
-  font-size: 1rem;
+  /* 16px prevents iOS Safari from zooming the page on focus */
+  font-size: 16px;
   font-family: inherit;
 }
 .input:focus { outline: 2px solid var(--primary); outline-offset: -1px; border-color: var(--primary); }
@@ -504,6 +701,7 @@ a:hover { color: #174a39; }
   background: var(--surface-2); border: var(--border);
   font-weight: 700; font-family: var(--font-display);
   font-size: 1.15rem; padding: 6px 16px; border-radius: 999px;
+  flex-shrink: 0;
 }
 .timer-pill.low { color: var(--danger); border-color: var(--danger); animation: pulse 0.6s ease infinite; }
 @keyframes pulse { 50% { transform: scale(1.07); } }
@@ -564,7 +762,7 @@ a:hover { color: #174a39; }
 /* ---------- Game HUD widgets ---------- */
 
 .hud-row { display: flex; gap: 16px; flex-wrap: wrap; max-width: 900px; margin: 0 auto 16px; }
-.hud-card { flex: 1; min-width: 180px; text-align: center; padding: 14px; }
+.hud-card { flex: 1; min-width: 150px; text-align: center; padding: 14px; }
 
 .boss-wrap { text-align: center; max-width: 640px; margin: 0 auto 18px; padding: 18px; background: var(--surface); border: var(--border); border-radius: var(--radius); }
 .boss-emoji { font-size: clamp(4.5rem, 14vw, 7.5rem); line-height: 1; display: inline-block; animation: boss-idle 3s ease-in-out infinite; }
@@ -649,8 +847,6 @@ a:hover { color: #174a39; }
 @media (max-width: 900px) {
   .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); }
   .topbar { flex-wrap: wrap; padding: 10px 14px; }
-  .topbar-nav { display: flex; order: 3; width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
-  .topbar-link { white-space: nowrap; }
   .topbar-name { display: none; }
 }
 
@@ -662,7 +858,7 @@ a:hover { color: #174a39; }
   .side-nav { display: none; }
   .app-main { padding: 18px 14px 48px; }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-  .options-grid { grid-template-columns: 1fr; }
+  .options-grid { grid-template-columns: 1fr; gap: 10px; }
   .role-cards { grid-template-columns: 1fr; width: 100%; max-width: 400px; }
   .avatar-grid { grid-template-columns: repeat(6, 1fr); }
   .map-grid { grid-template-columns: repeat(2, 1fr); }
@@ -672,6 +868,48 @@ a:hover { color: #174a39; }
   .glass-card h1 { font-size: 1.3rem; }
   .glass-card .logo-word { font-size: 22px !important; }
   .code-input { width: 100%; max-width: 260px; font-size: 1.5rem; }
+
+  /* Comfortable touch targets (Apple/Google recommend ~44px) */
+  .btn-md { min-height: 44px; }
+  .btn-lg, .btn-xl { min-height: 48px; }
+  .topbar-link { padding: 10px 14px; }
+
+  /* Let header rows wrap instead of overflowing */
+  .row-between { flex-wrap: wrap; }
+  .topbar { gap: 10px; }
+  .topbar-right { gap: 8px; }
+
+  /* Tighter cards so content fits small screens */
+  .panel { padding: 16px; }
+  .card { padding: 14px; }
+  .modal-overlay { padding: 12px; }
+  .modal-body { padding: 4px 16px 16px; }
+  .stat-value { font-size: 1.45rem; }
+
+  /* Gameplay: compact HUD, thumb-friendly answers */
+  .play-bg { padding: 12px 10px 32px; }
+  .play-topbar { margin: -12px -10px 12px; padding: 8px 10px; padding-top: calc(8px + env(safe-area-inset-top)); gap: 8px; }
+  .play-topbar .logo-word { font-size: 18px !important; }
+  .timer-pill { font-size: 1rem; padding: 5px 12px; }
+  .hud-row { gap: 8px; margin-bottom: 12px; }
+  .hud-card { flex: 1 1 0; min-width: 0; padding: 10px 6px; }
+  .hud-card div[style*='font-weight: 900'] { font-size: 1.15rem !important; }
+  .hud-card .muted { font-size: 0.78rem; }
+  .question-text { margin: 14px 0 18px; }
+  .option-btn { min-height: 56px; padding: 14px; gap: 10px; }
+  .option-key { width: 32px; height: 32px; font-size: 0.95rem; }
+  .game-topbar { padding: 8px 12px; margin-bottom: 10px; }
+  .game-bg { padding: 12px; }
+  .rank-row { padding: 10px; gap: 8px; }
+  .rank-num { width: 26px; }
+  .feedback-continue { padding: 14px 42px; font-size: 1.1rem; }
+  .result-stats { gap: 8px; }
+}
+
+/* Very narrow phones (<360px): keep HUD stats on one line */
+@media (max-width: 360px) {
+  .hud-card div[style*='font-weight: 900'] { font-size: 1rem !important; }
+  .hud-card .muted { font-size: 0.7rem; }
 }
 
 /* ---------- Reduced motion ---------- */

@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Input } from '../components/ui';
+import { AuthSplit } from '../components/AuthSplit';
 import { ErrorBanner, describeError } from '../components/ErrorBanner';
 import { useAuth } from '../auth/AuthContext';
 import { friendlyAuthError } from '../lib/format';
@@ -31,8 +32,8 @@ export function ForgotPassword() {
   }
 
   return (
-    <div className="page-center">
-      <div className="glass-card">
+    <AuthSplit>
+      <div>
         <h1>Reset your password</h1>
         {sent ? (
           <>
@@ -60,6 +61,6 @@ export function ForgotPassword() {
           </form>
         )}
       </div>
-    </div>
+    </AuthSplit>
   );
 }

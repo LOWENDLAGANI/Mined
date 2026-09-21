@@ -2,6 +2,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button, Input } from '../components/ui';
+import { AuthSplit } from '../components/AuthSplit';
 import { ErrorBanner, describeError } from '../components/ErrorBanner';
 import { useAuth } from '../auth/AuthContext';
 import { friendlyAuthError } from '../lib/format';
@@ -67,8 +68,8 @@ export function Login() {
   }
 
   return (
-    <div className="page-center">
-      <div className="glass-card">
+    <AuthSplit>
+      <div>
         <h1>Log in</h1>
         {!firebaseConfigured && (
           <div style={{ marginBottom: 12, textAlign: 'left' }}>
@@ -104,6 +105,6 @@ export function Login() {
           New to Mined? <Link to="/register">Create an account</Link>
         </p>
       </div>
-    </div>
+    </AuthSplit>
   );
 }

@@ -8,6 +8,8 @@
 //   mascot.png          ← mascot image on waiting/results screens (transparent PNG)
 //   background.jpg      ← full-page background (landscape JPG)
 //   play-background.jpg ← live play screen background (falls back to background.jpg)
+//   auth-panel.jpg      ← login/register screens: right-side picture on
+//                         desktop, blurred full-screen background on phones
 //   music-lobby.mp3     ← waiting-room loop (MP3)
 //   music-question.mp3  ← loop while a question is open (MP3)
 //   sfx-correct.mp3     ← right-answer sound (MP3)
@@ -44,6 +46,14 @@ export const PLAY_BACKGROUND_SOURCES = [
   `/assets/play-background.jpg`,
   `/assets/play-background.png`,
   ...BACKGROUND_SOURCES,
+];
+// Login/register art. Desktop: shown as the right-hand panel. Phones: blurred
+// page background. If none of these files exist the UI falls back to a styled
+// brand panel, so the app never breaks while the image is missing.
+export const AUTH_PANEL_SOURCES = [
+  `/assets/auth-panel.jpg`,
+  `/assets/auth-panel.png`,
+  `/assets/auth-panel.webp`,
 ];
 
 export const AUDIO_SOURCES: Record<string, string[]> = {

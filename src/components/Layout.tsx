@@ -74,8 +74,7 @@ export function Layout() {
           </span>
           <Button variant="ghost" size="sm" onClick={() => { logout(); nav('/login'); }}>Log out</Button>
         </div>
-      </header>
-      <div className="app-body">
+      </header>      <div className="app-body">
         <aside className="side-nav">
           <div className="side-nav-heading">{isTeacher ? 'Teacher workspace' : 'Student space'}</div>
           <nav className="side-nav-links" aria-label="Workspace navigation">
@@ -104,6 +103,25 @@ export function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Phones: thumb-reachable bottom tab bar (desktop keeps the sidebar). */}
+      <nav className="bottom-nav" aria-label="Mobile navigation">
+        {links.map((l) => {
+          const isQuizEditor = l.to === '/teacher/quizzes' && location.pathname.startsWith('/teacher/quizzes/');
+          return (
+            <NavLink
+              key={l.label}
+              to={l.to}
+              end={l.to === '/student' || l.to === '/teacher/quizzes/new'}
+              className={({ isActive }) => `bottom-nav-link ${isActive && !isQuizEditor ? 'active' : ''}`}
+            >
+              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">{ICONS[l.icon]}</svg>
+              <span>{l.label}</span>
+            </NavLink>
+          );
+        })}
+      </nav>
+
       <footer className="app-footer">Mined</footer>
     </div>
   );

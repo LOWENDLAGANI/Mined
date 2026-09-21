@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button, Input } from '../components/ui';
+import { AuthSplit } from '../components/AuthSplit';
 import { ErrorBanner, describeError } from '../components/ErrorBanner';
 import { useAuth } from '../auth/AuthContext';
 import { AVATARS } from '../assets/avatars';
@@ -25,12 +26,12 @@ export function Register() {
 
   if (!safeRole) {
     return (
-      <div className="page-center">
-        <div className="glass-card">
+      <AuthSplit>
+        <div>
           <p className="muted">Unknown account type.</p>
           <Link to="/register">Choose your account type</Link>
         </div>
-      </div>
+      </AuthSplit>
     );
   }
 
@@ -78,8 +79,8 @@ export function Register() {
   }
 
   return (
-    <div className="page-center">
-      <div className="glass-card" style={{ textAlign: 'left' }}>
+    <AuthSplit>
+      <div style={{ textAlign: 'left' }}>
         <h1 style={{ textAlign: 'center' }}>
           {safeRole === 'teacher' ? 'Teacher sign-up' : 'Student sign-up'}
         </h1>
@@ -146,6 +147,6 @@ export function Register() {
           Wrong role? <Link to="/register">Switch</Link> · Have an account? <Link to="/login">Log in</Link>
         </p>
       </div>
-    </div>
+    </AuthSplit>
   );
 }
