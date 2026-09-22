@@ -41,8 +41,11 @@ function generatePin(): string {
 async function generateUniquePin(): Promise<string> {
   for (let attempt = 0; attempt < 20; attempt++) {
     const code = generatePin();
-    const snap = await db.collection('gameSessions').where('pin', '==', code).where('status', '!=', 'finished').limit(1).get();
-    if (snap.empty) return code;
+    // NOTE: no inequality filter here — combining `==` with `!=` on another
+    // field would require a composite index and crash the function (INTERNAL).
+    const snap = await db.collection('gameSessions').where('pin', '==', code).get();
+    const stillActive = snap.docs.some((d) => (d.data() as { status?: string }).status !== 'finished');
+    if (!stillActive) return code;
   }
   throw new HttpsError('internal', 'Could not generate a unique PIN.');
 }
